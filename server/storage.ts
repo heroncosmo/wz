@@ -26,6 +26,7 @@ export interface IStorage {
 
   // WhatsApp connection operations
   getConnectionByUserId(userId: string): Promise<WhatsappConnection | undefined>;
+  getAllConnections(): Promise<WhatsappConnection[]>;
   createConnection(connection: InsertWhatsappConnection): Promise<WhatsappConnection>;
   updateConnection(id: string, data: Partial<InsertWhatsappConnection>): Promise<WhatsappConnection>;
 
@@ -81,6 +82,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(whatsappConnections.createdAt))
       .limit(1);
     return connection;
+  }
+
+  async getAllConnections(): Promise<WhatsappConnection[]> {
+    const connections = await db
+      .select()
+      .from(whatsappConnections)
+      .orderBy(desc(whatsappConnections.createdAt));
+    return connections;
   }
 
   async createConnection(connectionData: InsertWhatsappConnection): Promise<WhatsappConnection> {

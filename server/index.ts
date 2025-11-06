@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { restoreExistingSessions } from "./whatsapp";
 
 const app = express();
 
@@ -77,5 +78,10 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Restore WhatsApp sessions after server starts
+    restoreExistingSessions().catch((error) => {
+      console.error("Failed to restore WhatsApp sessions:", error);
+    });
   });
 })();

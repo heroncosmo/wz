@@ -178,7 +178,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     messageId: waMessage.key.id!,
     fromMe: false,
     text: messageText,
-    timestamp: new Date(waMessage.messageTimestamp! * 1000),
+    timestamp: new Date(Number(waMessage.messageTimestamp) * 1000),
     isFromAgent: false,
   });
 
@@ -295,4 +295,29 @@ export async function disconnectWhatsApp(userId: string): Promise<void> {
 
 export function getSession(userId: string): WhatsAppSession | undefined {
   return sessions.get(userId);
+}
+
+export async function restoreExistingSessions(): Promise<void> {
+  try {
+    console.log("Checking for existing WhatsApp connections...");
+    const connections = await storage.getAllConnections();
+    
+    for (const connection of connections) {
+      if (connection.isConnected && connection.userId) {
+        console.log(`Restoring WhatsApp session for user ${connection.userId}...`);
+        try {
+          await connectWhatsApp(connection.userId);
+        } catch (error) {
+          console.error(`Failed to restore session for user ${connection.userId}:`, error);
+          await storage.updateConnection(connection.id, {
+            isConnected: false,
+            qrCode: null,
+          });
+        }
+      }
+    }
+    console.log("Session restoration complete");
+  } catch (error) {
+    console.error("Error restoring sessions:", error);
+  }
 }
