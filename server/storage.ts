@@ -40,6 +40,7 @@ export interface IStorage {
   getMessagesByConversationId(conversationId: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
   getTodayMessagesCount(connectionId: string): Promise<number>;
+  getAgentMessagesCount(connectionId: string): Promise<number>;
 
   // AI Agent operations
   getAgentConfig(userId: string): Promise<AiAgentConfig | undefined>;
@@ -178,6 +179,21 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(conversations.connectionId, connectionId),
           gte(messages.timestamp, today)
+        )
+      );
+
+    return result.length;
+  }
+
+  async getAgentMessagesCount(connectionId: string): Promise<number> {
+    const result = await db
+      .select()
+      .from(messages)
+      .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+      .where(
+        and(
+          eq(conversations.connectionId, connectionId),
+          eq(messages.isFromAgent, true)
         )
       );
 

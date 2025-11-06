@@ -182,17 +182,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalConversations: 0,
           unreadMessages: 0,
           todayMessages: 0,
+          agentMessages: 0,
         });
       }
 
       const conversations = await storage.getConversationsByConnectionId(connection.id);
       const unreadMessages = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
       const todayMessages = await storage.getTodayMessagesCount(connection.id);
+      const agentMessages = await storage.getAgentMessagesCount(connection.id);
 
       res.json({
         totalConversations: conversations.length,
         unreadMessages,
         todayMessages,
+        agentMessages,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
