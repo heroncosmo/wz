@@ -57,10 +57,11 @@ export default function MyAgent() {
       const response = await apiRequest("POST", "/api/agent/test", {
         message: testMessage,
       });
-      return response;
+      const data = await response.json();
+      return data;
     },
     onSuccess: (data: any) => {
-      setTestResponse(data.response || "Sem resposta");
+      setTestResponse(data?.response || "Sem resposta");
     },
     onError: (error: Error) => {
       toast({
