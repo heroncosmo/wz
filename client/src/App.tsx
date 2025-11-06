@@ -19,12 +19,13 @@ function Router() {
   return (
     <Switch>
       <Route path="/admin-login" component={AdminLogin} />
+      <Route path="/admin" component={AdminPanel} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
         <>
           <Route path="/" component={Dashboard} />
-          <Route path="/admin" component={AdminPanel} />
+          <Route path="/dashboard" component={Dashboard} />
           <Route path="/plans" component={PlansPage} />
           <Route path="/subscribe/:id" component={SubscribePage} />
           <Route path="/settings" component={SettingsPage} />
