@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { restoreExistingSessions } from "./whatsapp";
+import { seedDatabase } from "./seed";
 
 const app = express();
 
@@ -76,8 +77,15 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Seed database with initial data
+    try {
+      await seedDatabase();
+    } catch (error) {
+      console.error("Failed to seed database:", error);
+    }
     
     // Restore WhatsApp sessions after server starts
     restoreExistingSessions().catch((error) => {

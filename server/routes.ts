@@ -3,14 +3,22 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, getSession } from "./replitAuth";
+import { isAdmin } from "./middleware";
 import {
   connectWhatsApp,
   disconnectWhatsApp,
   sendMessage as whatsappSendMessage,
   addWebSocketClient,
 } from "./whatsapp";
-import { sendMessageSchema, insertAiAgentConfigSchema } from "@shared/schema";
+import { 
+  sendMessageSchema, 
+  insertAiAgentConfigSchema,
+  insertPlanSchema,
+  insertSubscriptionSchema,
+  insertPaymentSchema,
+} from "@shared/schema";
 import { testAgentResponse } from "./aiAgent";
+import { generatePixQRCode } from "./pixService";
 import { z } from "zod";
 
 // Helper to get userId from authenticated request
@@ -295,6 +303,294 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error enabling agent:", error);
       res.status(500).json({ message: "Failed to enable agent" });
+    }
+  });
+
+  // ==================== PLANOS ROUTES ====================
+  // Get all active plans (public)
+  app.get("/api/plans", async (_req, res) => {
+    try {
+      const plans = await storage.getActivePlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+      res.status(500).json({ message: "Failed to fetch plans" });
+    }
+  });
+
+  // Get all plans (admin only)
+  app.get("/api/admin/plans", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const plans = await storage.getAllPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+      res.status(500).json({ message: "Failed to fetch plans" });
+    }
+  });
+
+  // Create plan (admin only)
+  app.post("/api/admin/plans", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertPlanSchema.parse(req.body);
+      const plan = await storage.createPlan(validatedData);
+      res.json(plan);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Error creating plan:", error);
+      res.status(500).json({ message: "Failed to create plan" });
+    }
+  });
+
+  // Update plan (admin only)
+  app.put("/api/admin/plans/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertPlanSchema.partial().parse(req.body);
+      const plan = await storage.updatePlan(id, validatedData);
+      res.json(plan);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Error updating plan:", error);
+      res.status(500).json({ message: "Failed to update plan" });
+    }
+  });
+
+  // Delete plan (admin only)
+  app.delete("/api/admin/plans/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deletePlan(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting plan:", error);
+      res.status(500).json({ message: "Failed to delete plan" });
+    }
+  });
+
+  // ==================== SUBSCRIPTIONS ROUTES ====================
+  // Get current user subscription
+  app.get("/api/subscriptions/current", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const subscription = await storage.getUserSubscription(userId);
+      res.json(subscription || null);
+    } catch (error) {
+      console.error("Error fetching subscription:", error);
+      res.status(500).json({ message: "Failed to fetch subscription" });
+    }
+  });
+
+  // Create subscription
+  app.post("/api/subscriptions/create", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { planId } = req.body;
+
+      if (!planId) {
+        return res.status(400).json({ message: "Plan ID is required" });
+      }
+
+      // Check if plan exists and is active
+      const plan = await storage.getPlan(planId);
+      if (!plan || !plan.ativo) {
+        return res.status(404).json({ message: "Plan not found or inactive" });
+      }
+
+      // Create subscription with pending status
+      const subscription = await storage.createSubscription({
+        userId,
+        planId,
+        status: "pending",
+        dataInicio: new Date(),
+      });
+
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error creating subscription:", error);
+      res.status(500).json({ message: "Failed to create subscription" });
+    }
+  });
+
+  // Get all subscriptions (admin only)
+  app.get("/api/admin/subscriptions", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const subscriptions = await storage.getAllSubscriptions();
+      res.json(subscriptions);
+    } catch (error) {
+      console.error("Error fetching subscriptions:", error);
+      res.status(500).json({ message: "Failed to fetch subscriptions" });
+    }
+  });
+
+  // ==================== PAYMENTS ROUTES ====================
+  // Generate PIX QR Code
+  app.post("/api/payments/generate-pix", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { subscriptionId } = req.body;
+
+      if (!subscriptionId) {
+        return res.status(400).json({ message: "Subscription ID is required" });
+      }
+
+      // Get subscription with plan
+      const subscription = await storage.getUserSubscription(userId);
+      if (!subscription || subscription.id !== subscriptionId) {
+        return res.status(404).json({ message: "Subscription not found" });
+      }
+
+      // Check if payment already exists
+      const existingPayment = await storage.getPaymentBySubscriptionId(subscriptionId);
+      if (existingPayment && existingPayment.status === "pending") {
+        return res.json(existingPayment);
+      }
+
+      // Generate PIX QR Code
+      const { pixCode, pixQrCode } = await generatePixQRCode({
+        planNome: subscription.plan.nome,
+        valor: Number(subscription.plan.valor),
+        subscriptionId,
+      });
+
+      // Create payment record
+      const payment = await storage.createPayment({
+        subscriptionId,
+        valor: subscription.plan.valor,
+        metodoPagamento: "pix",
+        status: "pending",
+        pixCode,
+        pixQrCode,
+      });
+
+      res.json(payment);
+    } catch (error) {
+      console.error("Error generating PIX:", error);
+      res.status(500).json({ message: "Failed to generate PIX" });
+    }
+  });
+
+  // Get pending payments (admin only)
+  app.get("/api/admin/payments/pending", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const payments = await storage.getPendingPayments();
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching pending payments:", error);
+      res.status(500).json({ message: "Failed to fetch pending payments" });
+    }
+  });
+
+  // Approve payment (admin only)
+  app.post("/api/admin/payments/approve/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get payment
+      const payment = await storage.getPayment(id);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+
+      if (payment.status !== "pending") {
+        return res.status(400).json({ message: "Payment already processed" });
+      }
+
+      // Update payment status
+      await storage.updatePayment(id, {
+        status: "paid",
+        dataPagamento: new Date(),
+      });
+
+      // Activate subscription
+      const subscription = await storage.getUserSubscription(payment.subscriptionId);
+      if (subscription) {
+        const now = new Date();
+        const dataFim = new Date(now);
+        
+        // Add subscription period based on plan
+        if (subscription.plan.periodicidade === "mensal") {
+          dataFim.setMonth(dataFim.getMonth() + 1);
+        } else if (subscription.plan.periodicidade === "anual") {
+          dataFim.setFullYear(dataFim.getFullYear() + 1);
+        }
+
+        await storage.updateSubscription(subscription.id, {
+          status: "active",
+          dataInicio: now,
+          dataFim,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error approving payment:", error);
+      res.status(500).json({ message: "Failed to approve payment" });
+    }
+  });
+
+  // ==================== ADMIN ROUTES ====================
+  // Get all users
+  app.get("/api/admin/users", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Get admin stats
+  app.get("/api/admin/stats", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const [users, totalRevenue, activeSubscriptions] = await Promise.all([
+        storage.getAllUsers(),
+        storage.getTotalRevenue(),
+        storage.getActiveSubscriptionsCount(),
+      ]);
+
+      res.json({
+        totalUsers: users.length,
+        totalRevenue,
+        activeSubscriptions,
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Get system config
+  app.get("/api/admin/config", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const mistralKey = await storage.getSystemConfig("mistral_api_key");
+      res.json({
+        mistral_api_key: mistralKey?.valor || "",
+      });
+    } catch (error) {
+      console.error("Error fetching config:", error);
+      res.status(500).json({ message: "Failed to fetch config" });
+    }
+  });
+
+  // Update system config
+  app.put("/api/admin/config", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { mistral_api_key } = req.body;
+
+      if (mistral_api_key !== undefined) {
+        await storage.updateSystemConfig("mistral_api_key", mistral_api_key);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating config:", error);
+      res.status(500).json({ message: "Failed to update config" });
     }
   });
 

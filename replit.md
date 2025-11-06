@@ -2,11 +2,22 @@
 
 ## Overview
 
-A WhatsApp CRM SaaS application that enables users to manage their WhatsApp conversations through a centralized web platform. The application connects to users' WhatsApp accounts via QR code authentication and provides a professional interface for viewing, organizing, and responding to messages. Built with a modern full-stack architecture using React, Express, and PostgreSQL, it leverages the Baileys library for WhatsApp Web integration.
+A complete multi-tenant WhatsApp CRM SaaS platform that enables users to manage WhatsApp conversations through a centralized web interface. Features include WhatsApp QR code authentication, AI-powered automatic responses via Mistral, subscription plans with PIX payment integration, and a comprehensive admin panel for platform management. Built with React, Express, PostgreSQL, and the Baileys library for WhatsApp Web integration.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Major Updates (Nov 6, 2025)
+
+**Complete SaaS Transformation:**
+- ✅ Multi-tenant architecture with subscription plans
+- ✅ PIX payment integration using qrcode-pix library
+- ✅ Admin panel with user management, plan CRUD, payment approval, and system configuration
+- ✅ Subscription flow: users choose plans, generate PIX QR codes, admin approves payments
+- ✅ Mistral API key moved from environment variables to database (system_config table)
+- ✅ Role-based access control (owner, admin, user roles)
+- ✅ Default plans seeded: Básico (R$99.90), Profissional (R$199.90), Empresarial (R$499.90)
 
 ## System Architecture
 
@@ -65,15 +76,27 @@ Preferred communication style: Simple, everyday language.
 
 **Schema Design**
 - `sessions` table: OIDC session storage (sid, sess, expire) with expiration index
-- `users` table: User profiles with Replit Auth fields (mandatory for authentication)
+- `users` table: User profiles with Replit Auth fields + role (owner/admin/user) for RBAC
+- `admins` table: Admin credentials with bcrypt password hashing
+- `plans` table: Subscription plans (nome, valor, periodicidade, limiteConversas, limiteAgentes, ativo)
+- `subscriptions` table: User subscriptions (userId, planId, status, dataInicio, dataFim)
+- `payments` table: Payment records (subscriptionId, valor, metodoPagamento, status, pixCode, pixQrCode)
+- `system_config` table: System-wide settings (chave, valor) - stores Mistral API key
 - `whatsapp_connections` table: One-to-one user relationship storing phoneNumber, isConnected status, qrCode, and sessionData (JSONB)
 - `conversations` table: Linked to connections, tracks contactNumber, contactName, lastMessageText, lastMessageTime, unreadCount
 - `messages` table: Stores message history with conversationId, senderId, text, isFromMe boolean, timestamp, messageId (WhatsApp's unique ID)
+- `ai_agent_config` table: User-specific AI agent configuration (userId, prompt, isActive, model)
+- `agent_disabled_conversations` table: Per-conversation agent override (conversationId foreign key)
 
 **Data Relations**
+- Users → Subscriptions (one-to-many, cascade delete)
+- Plans → Subscriptions (one-to-many, cascade delete)
+- Subscriptions → Payments (one-to-many, cascade delete)
 - Users → WhatsAppConnections (one-to-one, cascade delete)
 - WhatsAppConnections → Conversations (one-to-many, cascade delete)
 - Conversations → Messages (one-to-many, cascade delete)
+- Users → AIAgentConfig (one-to-one, cascade delete)
+- Conversations → AgentDisabledConversations (one-to-one, cascade delete)
 
 ### AI Agent System
 

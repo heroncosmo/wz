@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index, decimal } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -22,6 +22,10 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  role: varchar("role", { length: 50 }).default("user").notNull(),
+  telefone: varchar("telefone"),
+  whatsappNumber: varchar("whatsapp_number"),
+  onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -82,6 +86,64 @@ export const agentDisabledConversations = pgTable("agent_disabled_conversations"
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Admins table
+export const admins = pgTable("admins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique().notNull(),
+  passwordHash: text("password_hash").notNull(),
+  role: varchar("role", { length: 50 }).default("admin").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Plans table
+export const plans = pgTable("plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nome: varchar("nome", { length: 100 }).notNull(),
+  valor: decimal("valor", { precision: 10, scale: 2 }).notNull(),
+  periodicidade: varchar("periodicidade", { length: 20 }).default("mensal").notNull(), // mensal, anual
+  limiteConversas: integer("limite_conversas").default(100).notNull(),
+  limiteAgentes: integer("limite_agentes").default(1).notNull(),
+  ativo: boolean("ativo").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Subscriptions table
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  planId: varchar("plan_id").notNull().references(() => plans.id, { onDelete: 'cascade' }),
+  status: varchar("status", { length: 50 }).default("pending").notNull(), // pending, active, expired, cancelled
+  dataInicio: timestamp("data_inicio"),
+  dataFim: timestamp("data_fim"),
+  canaisUsados: integer("canais_usados").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Payments table
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  subscriptionId: varchar("subscription_id").notNull().references(() => subscriptions.id, { onDelete: 'cascade' }),
+  valor: decimal("valor", { precision: 10, scale: 2 }).notNull(),
+  pixCode: text("pix_code").notNull(),
+  pixQrCode: text("pix_qr_code").notNull(),
+  status: varchar("status", { length: 50 }).default("pending").notNull(), // pending, paid, expired
+  dataPagamento: timestamp("data_pagamento"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// System configuration table
+export const systemConfig = pgTable("system_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  chave: varchar("chave", { length: 100 }).unique().notNull(),
+  valor: text("valor"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   whatsappConnections: many(whatsappConnections),
@@ -89,6 +151,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [aiAgentConfig.userId],
   }),
+  subscriptions: many(subscriptions),
 }));
 
 export const whatsappConnectionsRelations = relations(whatsappConnections, ({ one, many }) => ({
@@ -115,6 +178,29 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   conversation: one(conversations, {
     fields: [messages.conversationId],
     references: [conversations.id],
+  }),
+}));
+
+export const plansRelations = relations(plans, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [subscriptions.userId],
+    references: [users.id],
+  }),
+  plan: one(plans, {
+    fields: [subscriptions.planId],
+    references: [plans.id],
+  }),
+  payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  subscription: one(subscriptions, {
+    fields: [payments.subscriptionId],
+    references: [subscriptions.id],
   }),
 }));
 
@@ -165,3 +251,54 @@ export const insertAgentDisabledConversationSchema = createInsertSchema(agentDis
 });
 export type InsertAgentDisabledConversation = z.infer<typeof insertAgentDisabledConversationSchema>;
 export type AgentDisabledConversation = typeof agentDisabledConversations.$inferSelect;
+
+// Admin schemas and types
+export const insertAdminSchema = createInsertSchema(admins).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+export type Admin = typeof admins.$inferSelect;
+
+export const loginAdminSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+export type LoginAdmin = z.infer<typeof loginAdminSchema>;
+
+// Plan schemas and types
+export const insertPlanSchema = createInsertSchema(plans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPlan = z.infer<typeof insertPlanSchema>;
+export type Plan = typeof plans.$inferSelect;
+
+// Subscription schemas and types
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+
+// Payment schemas and types
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
+
+// System config schemas and types
+export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
+export type SystemConfig = typeof systemConfig.$inferSelect;

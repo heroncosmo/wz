@@ -1,10 +1,30 @@
 import { Mistral } from "@mistralai/mistralai";
 import { storage } from "./storage";
 import type { Message } from "@shared/schema";
+import { db } from "./db";
+import { systemConfig } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
-const mistral = new Mistral({
-  apiKey: process.env.MISTRAL_API_KEY || "",
-});
+async function getMistralClient(): Promise<Mistral> {
+  try {
+    const config = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.chave, "mistral_api_key"))
+      .limit(1);
+
+    const apiKey = config[0]?.valor || process.env.MISTRAL_API_KEY || "";
+    
+    if (!apiKey) {
+      throw new Error("Mistral API Key not configured");
+    }
+
+    return new Mistral({ apiKey });
+  } catch (error) {
+    console.error("Error getting Mistral client:", error);
+    throw error;
+  }
+}
 
 export async function generateAIResponse(
   userId: string,
@@ -37,13 +57,15 @@ export async function generateAIResponse(
       content: newMessageText,
     });
 
+    const mistral = await getMistralClient();
     const chatResponse = await mistral.chat.complete({
       model: agentConfig.model,
       messages: messages as any,
     });
 
-    const responseText = chatResponse.choices?.[0]?.message?.content;
-    return responseText || null;
+    const content = chatResponse.choices?.[0]?.message?.content;
+    const responseText = typeof content === 'string' ? content : null;
+    return responseText;
   } catch (error) {
     console.error("Error generating AI response:", error);
     return null;
@@ -72,13 +94,15 @@ export async function testAgentResponse(
       },
     ];
 
+    const mistral = await getMistralClient();
     const chatResponse = await mistral.chat.complete({
       model: agentConfig.model,
       messages: messages as any,
     });
 
-    const responseText = chatResponse.choices?.[0]?.message?.content;
-    return responseText || null;
+    const content = chatResponse.choices?.[0]?.message?.content;
+    const responseText = typeof content === 'string' ? content : null;
+    return responseText;
   } catch (error) {
     console.error("Error testing agent:", error);
     throw error;
