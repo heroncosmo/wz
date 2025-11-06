@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, getSession } from "./replitAuth";
 import {
   connectWhatsApp,
   disconnectWhatsApp,
@@ -200,22 +200,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
 
-  // WebSocket server with authentication
+  // WebSocket server
   const wss = new WebSocketServer({ 
-    server: httpServer, 
-    path: "/ws",
-    verifyClient: (info, callback) => {
-      // Extract session from request
-      const req = info.req as any;
-      
-      // Get the session from the request
+    noServer: true
+  });
+
+  // Handle WebSocket upgrade with session support
+  httpServer.on("upgrade", (request, socket, head) => {
+    const pathname = new URL(request.url!, `http://${request.headers.host}`).pathname;
+    
+    if (pathname !== "/ws") {
+      socket.destroy();
+      return;
+    }
+
+    // Process session middleware for WebSocket upgrade
+    const session = getSession();
+    const req = request as any;
+    const res = {} as any;
+    
+    session(req, res, () => {
       if (!req.session || !req.session.passport || !req.session.passport.user) {
-        callback(false, 401, "Unauthorized");
+        console.error("WebSocket upgrade failed: no authenticated session");
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
         return;
       }
 
-      callback(true);
-    }
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, req);
+      });
+    });
   });
 
   wss.on("connection", (ws: WebSocket, req: any) => {
