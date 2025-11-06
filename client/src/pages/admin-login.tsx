@@ -29,9 +29,10 @@ export default function AdminLogin() {
 
     setIsLoading(true);
     try {
-      const response: any = await apiRequest("/api/admin/login", "POST", { email, password });
+      const response = await apiRequest("POST", "/api/admin/login", { email, password });
+      const data = await response.json();
 
-      if (response.success) {
+      if (data.success) {
         toast({
           title: "Sucesso",
           description: "Login realizado com sucesso!",
