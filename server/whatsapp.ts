@@ -9,6 +9,7 @@ import QRCode from "qrcode";
 import pino from "pino";
 import { storage } from "./storage";
 import WebSocket from "ws";
+import { generateAIResponse } from "./aiAgent";
 
 interface WhatsAppSession {
   socket: WASocket | null;
@@ -178,6 +179,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     fromMe: false,
     text: messageText,
     timestamp: new Date(waMessage.messageTimestamp! * 1000),
+    isFromAgent: false,
   });
 
   broadcastToUser(session.userId, {
@@ -185,6 +187,50 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     conversationId: conversation.id,
     message: messageText,
   });
+
+  // AI Agent Auto-Response
+  try {
+    const isAgentDisabled = await storage.isAgentDisabledForConversation(conversation.id);
+    
+    if (!isAgentDisabled) {
+      const conversationHistory = await storage.getMessagesByConversationId(conversation.id);
+      const aiResponse = await generateAIResponse(
+        session.userId,
+        conversationHistory,
+        messageText
+      );
+
+      if (aiResponse && session.socket) {
+        const jid = `${contactNumber}@s.whatsapp.net`;
+        const sentMessage = await session.socket.sendMessage(jid, { text: aiResponse });
+
+        await storage.createMessage({
+          conversationId: conversation.id,
+          messageId: sentMessage?.key.id || Date.now().toString(),
+          fromMe: true,
+          text: aiResponse,
+          timestamp: new Date(),
+          status: "sent",
+          isFromAgent: true,
+        });
+
+        await storage.updateConversation(conversation.id, {
+          lastMessageText: aiResponse,
+          lastMessageTime: new Date(),
+        });
+
+        broadcastToUser(session.userId, {
+          type: "agent_response",
+          conversationId: conversation.id,
+          message: aiResponse,
+        });
+
+        console.log(`AI Agent responded to ${contactNumber}: ${aiResponse}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error generating AI response:", error);
+  }
 }
 
 export async function sendMessage(userId: string, conversationId: string, text: string): Promise<void> {

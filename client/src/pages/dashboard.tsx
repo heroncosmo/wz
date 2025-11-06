@@ -2,18 +2,19 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Settings, LogOut, Smartphone } from "lucide-react";
+import { MessageCircle, Settings, LogOut, Smartphone, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConversationsList } from "@/components/conversations-list";
 import { ChatArea } from "@/components/chat-area";
 import { ConnectionPanel } from "@/components/connection-panel";
 import { DashboardStats } from "@/components/dashboard-stats";
+import MyAgent from "@/pages/my-agent";
 import type { WhatsappConnection } from "@shared/schema";
 
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
-  const [selectedView, setSelectedView] = useState<"conversations" | "connection" | "stats">("conversations");
+  const [selectedView, setSelectedView] = useState<"conversations" | "connection" | "stats" | "agent">("conversations");
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -78,6 +79,15 @@ export default function Dashboard() {
           >
             <Smartphone className="w-5 h-5" />
           </Button>
+          <Button
+            size="icon"
+            variant={selectedView === "agent" ? "default" : "ghost"}
+            onClick={() => setSelectedView("agent")}
+            data-testid="button-nav-agent"
+            className="rounded-md"
+          >
+            <Bot className="w-5 h-5" />
+          </Button>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -113,6 +123,12 @@ export default function Dashboard() {
         {selectedView === "connection" && (
           <div className="flex-1 overflow-auto">
             <ConnectionPanel />
+          </div>
+        )}
+
+        {selectedView === "agent" && (
+          <div className="flex-1 overflow-auto">
+            <MyAgent />
           </div>
         )}
 
