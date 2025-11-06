@@ -3,7 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, MessageCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Send, MessageCircle, Bot, BotOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -29,6 +31,35 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
     queryKey: ["/api/messages", conversationId],
     enabled: !!conversationId,
     refetchInterval: 2000, // Poll every 2 seconds
+  });
+
+  const { data: agentStatus } = useQuery<{ isDisabled: boolean }>({
+    queryKey: ["/api/agent/status", conversationId],
+    enabled: !!conversationId,
+  });
+
+  const toggleAgentMutation = useMutation({
+    mutationFn: async (disable: boolean) => {
+      return await apiRequest("POST", `/api/agent/toggle/${conversationId}`, {
+        disable,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/status", conversationId] });
+      toast({
+        title: agentStatus?.isDisabled ? "Agente Ativado" : "Agente Desativado",
+        description: agentStatus?.isDisabled 
+          ? "O agente voltará a responder automaticamente" 
+          : "O agente não responderá mais nesta conversa",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao alterar agente",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const sendMutation = useMutation({
@@ -119,6 +150,31 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
             {conversation?.contactNumber}
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          <Badge
+            variant={agentStatus?.isDisabled ? "secondary" : "default"}
+            className="gap-1"
+            data-testid="badge-agent-status-chat"
+          >
+            {agentStatus?.isDisabled ? (
+              <>
+                <BotOff className="w-3 h-3" />
+                Agente Desativado
+              </>
+            ) : (
+              <>
+                <Bot className="w-3 h-3" />
+                Agente Ativo
+              </>
+            )}
+          </Badge>
+          <Switch
+            checked={!agentStatus?.isDisabled}
+            onCheckedChange={(checked) => toggleAgentMutation.mutate(!checked)}
+            disabled={toggleAgentMutation.isPending}
+            data-testid="switch-agent-chat"
+          />
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -147,6 +203,12 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
                     : "bg-muted mr-auto"
                 }`}
               >
+                {message.isFromAgent && (
+                  <div className="flex items-center gap-1 mb-1">
+                    <Bot className="w-3 h-3 text-primary" />
+                    <span className="text-xs font-semibold text-primary">Agente IA</span>
+                  </div>
+                )}
                 <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
                 <p
                   className={`text-xs mt-1 ${
