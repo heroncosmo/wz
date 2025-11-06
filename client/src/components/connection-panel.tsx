@@ -1,0 +1,228 @@
+import { useEffect, useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Smartphone, QrCode, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { WhatsappConnection } from "@shared/schema";
+
+export function ConnectionPanel() {
+  const { toast } = useToast();
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+
+  const { data: connection, isLoading } = useQuery<WhatsappConnection>({
+    queryKey: ["/api/whatsapp/connection"],
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/whatsapp/connect", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
+      toast({
+        title: "Conectando",
+        description: "Aguarde o QR Code aparecer...",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao conectar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/whatsapp/disconnect", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
+      toast({
+        title: "Desconectado",
+        description: "WhatsApp desconectado com sucesso",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao desconectar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === "qr") {
+          setQrCode(data.qr);
+        } else if (data.type === "connected") {
+          setQrCode(null);
+          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
+          toast({
+            title: "Conectado!",
+            description: "WhatsApp conectado com sucesso",
+          });
+        } else if (data.type === "disconnected") {
+          setQrCode(null);
+          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+
+    setWs(socket);
+
+    return () => {
+      socket.close();
+    };
+  }, [toast]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-auto">
+      <div className="container max-w-2xl mx-auto p-8 space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Conexão WhatsApp</h1>
+          <p className="text-muted-foreground">
+            Conecte seu número do WhatsApp para começar a gerenciar suas conversas
+          </p>
+        </div>
+
+        <Card className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center">
+                <Smartphone className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Status da Conexão</h3>
+                <p className="text-sm text-muted-foreground">
+                  {connection?.phoneNumber || "Nenhum número conectado"}
+                </p>
+              </div>
+            </div>
+            <Badge
+              variant={connection?.isConnected ? "default" : "secondary"}
+              className="gap-1"
+              data-testid="badge-connection-status"
+            >
+              {connection?.isConnected ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3" />
+                  Conectado
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-3 h-3" />
+                  Desconectado
+                </>
+              )}
+            </Badge>
+          </div>
+
+          {!connection?.isConnected && !qrCode && (
+            <div className="space-y-4">
+              <div className="p-6 bg-muted/50 rounded-md text-center space-y-4">
+                <QrCode className="w-12 h-12 mx-auto text-muted-foreground" />
+                <div className="space-y-2">
+                  <h4 className="font-medium">Conecte seu WhatsApp</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Clique no botão abaixo para gerar um QR Code e conectar seu WhatsApp
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => connectMutation.mutate()}
+                disabled={connectMutation.isPending}
+                className="w-full"
+                data-testid="button-connect"
+              >
+                {connectMutation.isPending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Gerando QR Code...
+                  </>
+                ) : (
+                  <>
+                    <Smartphone className="w-4 h-4 mr-2" />
+                    Conectar WhatsApp
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {qrCode && (
+            <div className="space-y-4">
+              <div className="p-6 bg-white rounded-md flex flex-col items-center gap-4">
+                <img
+                  src={qrCode}
+                  alt="QR Code"
+                  className="w-64 h-64"
+                  data-testid="image-qr-code"
+                />
+                <div className="text-center space-y-2">
+                  <h4 className="font-medium">Escaneie o QR Code</h4>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Abra o WhatsApp no seu celular e escaneie este código para conectar
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {connection?.isConnected && (
+            <div className="space-y-4">
+              <div className="p-6 bg-primary/5 border border-primary/20 rounded-md text-center space-y-2">
+                <CheckCircle2 className="w-12 h-12 mx-auto text-primary" />
+                <div className="space-y-1">
+                  <h4 className="font-medium">WhatsApp Conectado</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Número: {connection.phoneNumber}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending}
+                className="w-full"
+                data-testid="button-disconnect"
+              >
+                {disconnectMutation.isPending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Desconectando...
+                  </>
+                ) : (
+                  "Desconectar WhatsApp"
+                )}
+              </Button>
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}

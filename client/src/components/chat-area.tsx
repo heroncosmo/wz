@@ -1,0 +1,188 @@
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Send, MessageCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { Message, Conversation } from "@shared/schema";
+
+interface ChatAreaProps {
+  conversationId: string | null;
+  connectionId?: string;
+}
+
+export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
+  const { toast } = useToast();
+  const [messageText, setMessageText] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: conversation } = useQuery<Conversation>({
+    queryKey: ["/api/conversation", conversationId],
+    enabled: !!conversationId,
+  });
+
+  const { data: messages = [], isLoading } = useQuery<Message[]>({
+    queryKey: ["/api/messages", conversationId],
+    enabled: !!conversationId,
+    refetchInterval: 2000, // Poll every 2 seconds
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async (text: string) => {
+      return await apiRequest("POST", "/api/messages/send", {
+        conversationId,
+        text,
+      });
+    },
+    onSuccess: () => {
+      setMessageText("");
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSend = () => {
+    if (!messageText.trim() || !conversationId) return;
+    sendMutation.mutate(messageText);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  if (!conversationId) {
+    return (
+      <div className="flex items-center justify-center h-full bg-muted/20">
+        <div className="text-center space-y-4 max-w-sm p-8">
+          <MessageCircle className="w-16 h-16 mx-auto text-muted-foreground" />
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg">Selecione uma conversa</h3>
+            <p className="text-sm text-muted-foreground">
+              Escolha uma conversa da lista para começar a visualizar e responder mensagens
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!connectionId) {
+    return (
+      <div className="flex items-center justify-center h-full bg-muted/20">
+        <div className="text-center space-y-4 max-w-sm p-8">
+          <MessageCircle className="w-16 h-16 mx-auto text-muted-foreground" />
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg">WhatsApp não conectado</h3>
+            <p className="text-sm text-muted-foreground">
+              Conecte seu WhatsApp primeiro para visualizar as conversas
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Chat Header */}
+      <div className="p-4 border-b flex items-center gap-3">
+        <Avatar className="w-10 h-10">
+          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+            {conversation?.contactName
+              ? conversation.contactName.charAt(0).toUpperCase()
+              : conversation?.contactNumber.charAt(0)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold truncate" data-testid="text-contact-name">
+            {conversation?.contactName || conversation?.contactNumber}
+          </h3>
+          <p className="text-xs text-muted-foreground font-mono">
+            {conversation?.contactNumber}
+          </p>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-auto p-4 space-y-4" data-testid="container-messages">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center space-y-2">
+              <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda</p>
+            </div>
+          </div>
+        ) : (
+          messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.fromMe ? "justify-end" : "justify-start"}`}
+              data-testid={`message-${message.id}`}
+            >
+              <div
+                className={`max-w-md rounded-md px-4 py-2 ${
+                  message.fromMe
+                    ? "bg-primary text-primary-foreground ml-auto"
+                    : "bg-muted mr-auto"
+                }`}
+              >
+                <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                <p
+                  className={`text-xs mt-1 ${
+                    message.fromMe ? "text-primary-foreground/70" : "text-muted-foreground"
+                  }`}
+                >
+                  {format(new Date(message.timestamp), "HH:mm", { locale: ptBR })}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input */}
+      <div className="p-4 border-t bg-background">
+        <div className="flex gap-2">
+          <Textarea
+            placeholder="Digite sua mensagem..."
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={handleKeyPress}
+            className="resize-none min-h-12 max-h-32"
+            data-testid="input-message"
+          />
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={!messageText.trim() || sendMutation.isPending}
+            data-testid="button-send"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
