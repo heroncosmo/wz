@@ -1,4 +1,5 @@
 import { QrCodePix } from 'qrcode-pix';
+import { storage } from './storage';
 
 interface PixPaymentData {
   planNome: string;
@@ -8,9 +9,12 @@ interface PixPaymentData {
 
 export async function generatePixQRCode(paymentData: PixPaymentData) {
   try {
+    const pixKeyConfig = await storage.getSystemConfig('pix_key');
+    const pixKey = pixKeyConfig?.valor || 'rodrigoconexao128@gmail.com';
+
     const qrCodePix = QrCodePix({
       version: '01',
-      key: 'rodrigoconexao128@gmail.com', // Chave PIX do dono do sistema
+      key: pixKey,
       name: 'WHATSAPP CRM SAAS',
       city: 'SAO PAULO',
       transactionId: paymentData.subscriptionId.substring(0, 25),

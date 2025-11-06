@@ -468,12 +468,13 @@ function PaymentsManager({
   );
 }
 
-function ConfigManager({ config }: { config: { mistral_api_key: string } | undefined }) {
+function ConfigManager({ config }: { config: { mistral_api_key: string; pix_key?: string } | undefined }) {
   const { toast } = useToast();
   const [mistralKey, setMistralKey] = useState(config?.mistral_api_key || "");
+  const [pixKey, setPixKey] = useState(config?.pix_key || "");
 
   const updateConfigMutation = useMutation({
-    mutationFn: async (data: { mistral_api_key: string }) => {
+    mutationFn: async (data: { mistral_api_key: string; pix_key: string }) => {
       return await apiRequest("/api/admin/config", "PUT", data);
     },
     onSuccess: () => {
@@ -487,14 +488,14 @@ function ConfigManager({ config }: { config: { mistral_api_key: string } | undef
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateConfigMutation.mutate({ mistral_api_key: mistralKey });
+    updateConfigMutation.mutate({ mistral_api_key: mistralKey, pix_key: pixKey });
   };
 
   return (
     <Card data-testid="card-system-config">
       <CardHeader>
         <CardTitle>Configurações do Sistema</CardTitle>
-        <CardDescription>Chave API Mistral e outras configurações</CardDescription>
+        <CardDescription>Chave API Mistral, chave PIX e outras configurações</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -512,6 +513,22 @@ function ConfigManager({ config }: { config: { mistral_api_key: string } | undef
               Chave API usada por todos os agentes IA do sistema
             </p>
           </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="pixKey">Chave PIX</Label>
+            <Input
+              id="pixKey"
+              type="text"
+              value={pixKey}
+              onChange={(e) => setPixKey(e.target.value)}
+              placeholder="email@example.com ou CPF/CNPJ ou telefone"
+              data-testid="input-pix-key"
+            />
+            <p className="text-sm text-muted-foreground">
+              Chave PIX usada para receber pagamentos de assinaturas
+            </p>
+          </div>
+
           <Button type="submit" disabled={updateConfigMutation.isPending} data-testid="button-save-config">
             {updateConfigMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salvar Configurações

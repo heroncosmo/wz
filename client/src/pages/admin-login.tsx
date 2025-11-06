@@ -29,10 +29,7 @@ export default function AdminLogin() {
 
     setIsLoading(true);
     try {
-      const response = await apiRequest("/api/admin/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      const response: any = await apiRequest("/api/admin/login", "POST", { email, password });
 
       if (response.success) {
         toast({

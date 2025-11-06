@@ -524,7 +524,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const payment = await storage.createPayment({
         subscriptionId,
         valor: subscription.plan.valor,
-        metodoPagamento: "pix",
         status: "pending",
         pixCode,
         pixQrCode,
@@ -631,9 +630,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get system config
   app.get("/api/admin/config", isAuthenticated, isAdmin, async (_req, res) => {
     try {
-      const mistralKey = await storage.getSystemConfig("mistral_api_key");
+      const [mistralKey, pixKey] = await Promise.all([
+        storage.getSystemConfig("mistral_api_key"),
+        storage.getSystemConfig("pix_key"),
+      ]);
       res.json({
         mistral_api_key: mistralKey?.valor || "",
+        pix_key: pixKey?.valor || "",
       });
     } catch (error) {
       console.error("Error fetching config:", error);
@@ -644,10 +647,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update system config
   app.put("/api/admin/config", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { mistral_api_key } = req.body;
+      const { mistral_api_key, pix_key } = req.body;
 
       if (mistral_api_key !== undefined) {
         await storage.updateSystemConfig("mistral_api_key", mistral_api_key);
+      }
+
+      if (pix_key !== undefined) {
+        await storage.updateSystemConfig("pix_key", pix_key);
       }
 
       res.json({ success: true });

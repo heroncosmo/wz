@@ -44,36 +44,37 @@ export async function seedDatabase() {
       console.log("ℹ️ Mistral API Key already exists");
     }
 
+    // Seed PIX key
+    const pixKeyConfig = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.chave, "pix_key"))
+      .limit(1);
+
+    if (pixKeyConfig.length === 0) {
+      await db.insert(systemConfig).values({
+        chave: "pix_key",
+        valor: "rodrigoconexao128@gmail.com",
+      });
+      console.log("✅ PIX key configured");
+    } else {
+      console.log("ℹ️ PIX key already exists");
+    }
+
     // Seed default plans
     const existingPlans = await db.select().from(plans).limit(1);
     if (existingPlans.length === 0) {
       await db.insert(plans).values([
         {
-          nome: "Básico",
-          valor: "99.90",
+          nome: "Pro",
+          valor: "299.90",
           periodicidade: "mensal",
-          limiteConversas: 100,
-          limiteAgentes: 1,
-          ativo: true,
-        },
-        {
-          nome: "Profissional",
-          valor: "199.90",
-          periodicidade: "mensal",
-          limiteConversas: 500,
-          limiteAgentes: 3,
-          ativo: true,
-        },
-        {
-          nome: "Empresarial",
-          valor: "499.90",
-          periodicidade: "mensal",
-          limiteConversas: 2000,
-          limiteAgentes: 10,
+          limiteConversas: -1,
+          limiteAgentes: -1,
           ativo: true,
         },
       ]);
-      console.log("✅ Default plans created");
+      console.log("✅ Default plan Pro created");
     } else {
       console.log("ℹ️ Plans already exist");
     }
