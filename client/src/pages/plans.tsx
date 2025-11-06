@@ -22,8 +22,9 @@ export default function PlansPage() {
 
   const createSubscriptionMutation = useMutation<Subscription, Error, string>({
     mutationFn: async (planId: string) => {
-      const response = await apiRequest("/api/subscriptions/create", "POST", { planId });
-      return response as unknown as Subscription;
+      const response = await apiRequest("POST", "/api/subscriptions/create", { planId });
+      const data = await response.json();
+      return data as Subscription;
     },
     onSuccess: (data: Subscription) => {
       queryClient.invalidateQueries({ queryKey: ["/api/subscriptions/current"] });

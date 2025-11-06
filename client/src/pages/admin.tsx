@@ -174,7 +174,7 @@ function PlansManager({ plans }: { plans: Plan[] | undefined }) {
 
   const createPlanMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("/api/admin/plans", "POST", data);
+      return await apiRequest("POST", "/api/admin/plans", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/plans"] });
@@ -188,7 +188,7 @@ function PlansManager({ plans }: { plans: Plan[] | undefined }) {
 
   const updatePlanMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return await apiRequest(`/api/admin/plans/${id}`, "PUT", data);
+      return await apiRequest("PUT", `/api/admin/plans/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/plans"] });
@@ -202,7 +202,7 @@ function PlansManager({ plans }: { plans: Plan[] | undefined }) {
 
   const deletePlanMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/admin/plans/${id}`, "DELETE");
+      return await apiRequest("DELETE", `/api/admin/plans/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/plans"] });
@@ -398,7 +398,7 @@ function PaymentsManager({
 
   const approveMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/admin/payments/approve/${id}`, "POST");
+      return await apiRequest("POST", `/api/admin/payments/approve/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payments/pending"] });
@@ -475,7 +475,7 @@ function ConfigManager({ config }: { config: { mistral_api_key: string; pix_key?
 
   const updateConfigMutation = useMutation({
     mutationFn: async (data: { mistral_api_key: string; pix_key: string }) => {
-      return await apiRequest("/api/admin/config", "PUT", data);
+      return await apiRequest("PUT", "/api/admin/config", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/config"] });

@@ -25,7 +25,8 @@ export default function SubscribePage() {
 
   const generatePixMutation = useMutation({
     mutationFn: async (subscriptionId: string) => {
-      return await apiRequest("/api/payments/generate-pix", "POST", { subscriptionId });
+      const response = await apiRequest("POST", "/api/payments/generate-pix", { subscriptionId });
+      return await response.json();
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/payment", id], data);
