@@ -75,6 +75,42 @@ Preferred communication style: Simple, everyday language.
 - WhatsAppConnections → Conversations (one-to-many, cascade delete)
 - Conversations → Messages (one-to-many, cascade delete)
 
+### AI Agent System
+
+**Overview**
+- Automated customer response system powered by Mistral AI
+- Each user can configure a custom AI agent with personalized prompts
+- Global enable/disable control with per-conversation override capability
+- Real-time integration with WhatsApp message flow
+
+**Architecture**
+- **Backend (`server/aiAgent.ts`)**: Mistral SDK integration, conversation history context, response generation
+- **Frontend (`client/src/pages/my-agent.tsx`)**: Configuration interface with prompt editor, model selection, test functionality
+- **WhatsApp Integration (`server/whatsapp.ts`)**: Automatic message interception, agent status checking, response delivery via Baileys
+
+**Database Schema**
+- `ai_agent_config` table: User-specific configuration (userId, prompt, isActive, model, messagesResponded)
+- `agent_disabled_conversations` table: Per-conversation agent override (conversationId foreign key)
+
+**API Endpoints**
+- `GET/POST /api/agent/config`: Retrieve or update agent configuration
+- `POST /api/agent/test`: Test agent with sample message before deployment
+- `POST /api/agent/toggle/:conversationId`: Enable/disable agent for specific conversation
+- `GET /api/agent/status/:conversationId`: Check if agent is active for a conversation
+
+**Features**
+- Custom prompt configuration with model selection (mistral-tiny, mistral-small, mistral-medium)
+- Test interface to preview agent responses before activation
+- Global agent toggle with visual status indicators
+- Per-conversation disable/enable controls in chat interface
+- Dashboard statistics showing agent status and messages responded count
+- Automatic conversation history context (last 10 messages) for context-aware responses
+
+**Security**
+- Mistral API key stored in environment secrets (`MISTRAL_API_KEY`)
+- Authentication required for all agent endpoints
+- Per-user agent isolation (users cannot access other users' agents)
+
 ### External Dependencies
 
 **Third-Party Services**
