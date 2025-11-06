@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import AdminPanel from "@/pages/admin";
+import AdminLogin from "@/pages/admin-login";
 import PlansPage from "@/pages/plans";
 import SubscribePage from "@/pages/subscribe";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +17,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/admin-login" component={AdminLogin} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (

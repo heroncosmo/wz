@@ -87,6 +87,9 @@ export interface IStorage {
   getSystemConfig(key: string): Promise<SystemConfig | undefined>;
   updateSystemConfig(key: string, value: string): Promise<SystemConfig>;
 
+  // Admin operations
+  getAdminByEmail(email: string): Promise<any | undefined>;
+
   // Admin stats
   getAllUsers(): Promise<User[]>;
   getTotalRevenue(): Promise<number>;
@@ -451,6 +454,15 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return config;
+  }
+
+  // Admin operations
+  async getAdminByEmail(email: string): Promise<any | undefined> {
+    const [admin] = await db
+      .select()
+      .from(admins)
+      .where(eq(admins.email, email));
+    return admin;
   }
 
   // Admin stats

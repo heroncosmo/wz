@@ -30,6 +30,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // ==================== ADMIN AUTH ROUTES ====================
+  // Admin login with email/password
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password required" });
+      }
+
+      const admin = await storage.getAdminByEmail(email);
+      if (!admin) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const bcrypt = await import("bcryptjs");
+      const validPassword = await bcrypt.compare(password, admin.passwordHash);
+      
+      if (!validPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Store admin session
+      (req.session as any).adminId = admin.id;
+      (req.session as any).adminRole = admin.role;
+
+      res.json({ 
+        success: true,
+        admin: {
+          id: admin.id,
+          email: admin.email,
+          role: admin.role,
+        }
+      });
+    } catch (error) {
+      console.error("Error in admin login:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Check admin session
+  app.get("/api/admin/session", (req, res) => {
+    const adminId = (req.session as any)?.adminId;
+    const adminRole = (req.session as any)?.adminRole;
+    
+    if (adminId) {
+      res.json({ 
+        authenticated: true,
+        adminId,
+        role: adminRole,
+      });
+    } else {
+      res.json({ authenticated: false });
+    }
+  });
+
+  // Admin logout
+  app.post("/api/admin/logout", (req, res) => {
+    delete (req.session as any).adminId;
+    delete (req.session as any).adminRole;
+    res.json({ success: true });
+  });
+
   // Auth routes
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
