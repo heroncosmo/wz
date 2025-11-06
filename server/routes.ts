@@ -105,6 +105,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user profile
+  app.put("/api/user/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { email, telefone, firstName, lastName } = req.body;
+
+      await storage.updateUser(userId, {
+        email,
+        telefone,
+        firstName,
+        lastName,
+      });
+
+      const updatedUser = await storage.getUser(userId);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Update user password (Replit Auth users don't have passwords, so this is a placeholder)
+  app.put("/api/user/password", isAuthenticated, async (req: any, res) => {
+    try {
+      // Since we're using Replit Auth (OIDC), password management is handled by Replit
+      // This endpoint is here for future compatibility or if switching to custom auth
+      res.status(400).json({ 
+        message: "A autenticação é gerenciada pelo Replit. Use a página de configurações do Replit para alterar sua senha." 
+      });
+    } catch (error) {
+      console.error("Error updating password:", error);
+      res.status(500).json({ message: "Failed to update password" });
+    }
+  });
+
   // WhatsApp connection routes
   app.get("/api/whatsapp/connection", isAuthenticated, async (req: any, res) => {
     try {
@@ -487,6 +522,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
       res.status(500).json({ message: "Failed to fetch subscriptions" });
+    }
+  });
+
+  // Admin: Assign plan to client (create subscription and auto-activate)
+  app.post("/api/admin/subscriptions/assign", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { userId, planId } = req.body;
+
+      if (!userId || !planId) {
+        return res.status(400).json({ message: "User ID and Plan ID are required" });
+      }
+
+      const plan = await storage.getPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+
+      // Create subscription with active status
+      const subscription = await storage.createSubscription({
+        userId,
+        planId,
+        status: "active",
+        dataInicio: new Date(),
+        dataFim: new Date(Date.now() + (plan.periodicidade === "anual" ? 365 : 30) * 24 * 60 * 60 * 1000),
+      });
+
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error assigning plan:", error);
+      res.status(500).json({ message: "Failed to assign plan" });
+    }
+  });
+
+  // Admin: Cancel subscription
+  app.delete("/api/admin/subscriptions/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      await storage.updateSubscription(id, { 
+        status: "cancelled",
+        dataFim: new Date(),
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      res.status(500).json({ message: "Failed to cancel subscription" });
     }
   });
 

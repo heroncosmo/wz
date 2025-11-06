@@ -70,6 +70,7 @@ export default function AdminPanel() {
           <TabsList data-testid="tabs-admin">
             <TabsTrigger value="dashboard" data-testid="tab-dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">Usuários</TabsTrigger>
+            <TabsTrigger value="manage" data-testid="tab-manage">Gerenciar Clientes</TabsTrigger>
             <TabsTrigger value="plans" data-testid="tab-plans">Planos</TabsTrigger>
             <TabsTrigger value="payments" data-testid="tab-payments">Pagamentos</TabsTrigger>
             <TabsTrigger value="config" data-testid="tab-config">Configurações</TabsTrigger>
@@ -148,6 +149,10 @@ export default function AdminPanel() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="manage" className="space-y-4">
+            <ClientManager users={users} plans={plans} subscriptions={subscriptions} />
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-4">
@@ -295,10 +300,18 @@ function PlanForm({
     limiteAgentes: initialData?.limiteAgentes || 1,
     ativo: initialData?.ativo ?? true,
   });
+  
+  const [conversasIlimitadas, setConversasIlimitadas] = useState(initialData?.limiteConversas === -1);
+  const [agentesIlimitados, setAgentesIlimitados] = useState(initialData?.limiteAgentes === -1);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    const submitData = {
+      ...formData,
+      limiteConversas: conversasIlimitadas ? -1 : formData.limiteConversas,
+      limiteAgentes: agentesIlimitados ? -1 : formData.limiteAgentes,
+    };
+    onSubmit(submitData);
   };
 
   return (
@@ -348,24 +361,52 @@ function PlanForm({
           </Select>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="limiteConversas">Limite de Conversas</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="limiteConversas">Limite de Conversas</Label>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={conversasIlimitadas}
+                onCheckedChange={(checked) => {
+                  setConversasIlimitadas(checked);
+                  if (checked) setFormData({ ...formData, limiteConversas: -1 });
+                }}
+                data-testid="switch-conversations-unlimited"
+              />
+              <Label className="text-sm text-muted-foreground">Ilimitado</Label>
+            </div>
+          </div>
           <Input
             id="limiteConversas"
             type="number"
-            value={formData.limiteConversas}
-            onChange={(e) => setFormData({ ...formData, limiteConversas: parseInt(e.target.value) })}
-            required
+            value={conversasIlimitadas ? "" : formData.limiteConversas}
+            onChange={(e) => setFormData({ ...formData, limiteConversas: parseInt(e.target.value) || 0 })}
+            placeholder={conversasIlimitadas ? "Ilimitado" : "100"}
+            disabled={conversasIlimitadas}
             data-testid="input-plan-conversations-limit"
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="limiteAgentes">Limite de Agentes</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="limiteAgentes">Limite de Agentes</Label>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={agentesIlimitados}
+                onCheckedChange={(checked) => {
+                  setAgentesIlimitados(checked);
+                  if (checked) setFormData({ ...formData, limiteAgentes: -1 });
+                }}
+                data-testid="switch-agents-unlimited"
+              />
+              <Label className="text-sm text-muted-foreground">Ilimitado</Label>
+            </div>
+          </div>
           <Input
             id="limiteAgentes"
             type="number"
-            value={formData.limiteAgentes}
-            onChange={(e) => setFormData({ ...formData, limiteAgentes: parseInt(e.target.value) })}
-            required
+            value={agentesIlimitados ? "" : formData.limiteAgentes}
+            onChange={(e) => setFormData({ ...formData, limiteAgentes: parseInt(e.target.value) || 0 })}
+            placeholder={agentesIlimitados ? "Ilimitado" : "1"}
+            disabled={agentesIlimitados}
             data-testid="input-plan-agents-limit"
           />
         </div>
@@ -536,5 +577,171 @@ function ConfigManager({ config }: { config: { mistral_api_key: string; pix_key?
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function ClientManager({ 
+  users, 
+  plans,
+  subscriptions 
+}: { 
+  users: User[] | undefined;
+  plans: Plan[] | undefined;
+  subscriptions: (Subscription & { plan: Plan; user: User })[] | undefined;
+}) {
+  const { toast } = useToast();
+  const [selectedUser, setSelectedUser] = useState<string>("");
+  const [selectedPlan, setSelectedPlan] = useState<string>("");
+
+  const assignPlanMutation = useMutation({
+    mutationFn: async (data: { userId: string; planId: string }) => {
+      const response = await apiRequest("POST", "/api/admin/subscriptions/assign", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      setSelectedUser("");
+      setSelectedPlan("");
+      toast({ title: "Plano atribuído com sucesso!" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao atribuir plano", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/admin/subscriptions/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: "Assinatura cancelada com sucesso!" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao cancelar assinatura", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleAssignPlan = () => {
+    if (!selectedUser || !selectedPlan) {
+      toast({ title: "Selecione um usuário e um plano", variant: "destructive" });
+      return;
+    }
+    assignPlanMutation.mutate({ userId: selectedUser, planId: selectedPlan });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card data-testid="card-assign-plan">
+        <CardHeader>
+          <CardTitle>Atribuir Plano a Cliente</CardTitle>
+          <CardDescription>Ative ou troque o plano de um cliente manualmente (sem necessidade de pagamento)</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2">
+            <Label>Selecione o Cliente</Label>
+            <Select value={selectedUser} onValueChange={setSelectedUser}>
+              <SelectTrigger data-testid="select-user">
+                <SelectValue placeholder="Escolha um usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                {users?.filter(u => u.role !== "owner" && u.role !== "admin").map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.email} - {user.firstName} {user.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Selecione o Plano</Label>
+            <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+              <SelectTrigger data-testid="select-plan">
+                <SelectValue placeholder="Escolha um plano" />
+              </SelectTrigger>
+              <SelectContent>
+                {plans?.filter(p => p.ativo).map((plan) => (
+                  <SelectItem key={plan.id} value={plan.id}>
+                    {plan.nome} - R$ {plan.valor}/{plan.periodicidade}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button 
+            onClick={handleAssignPlan} 
+            disabled={assignPlanMutation.isPending}
+            data-testid="button-assign-plan"
+          >
+            {assignPlanMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Atribuir Plano e Ativar
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="card-active-subscriptions">
+        <CardHeader>
+          <CardTitle>Assinaturas Ativas</CardTitle>
+          <CardDescription>Gerencie as assinaturas dos clientes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Plano</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Início</TableHead>
+                <TableHead>Fim</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {subscriptions?.filter(s => s.status === "active").length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    Nenhuma assinatura ativa
+                  </TableCell>
+                </TableRow>
+              )}
+              {subscriptions?.filter(s => s.status === "active").map((subscription) => (
+                <TableRow key={subscription.id} data-testid={`row-subscription-${subscription.id}`}>
+                  <TableCell>{subscription.user.email}</TableCell>
+                  <TableCell>
+                    <Badge>{subscription.plan.nome}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={subscription.status === "active" ? "default" : "secondary"}>
+                      {subscription.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {subscription.dataInicio ? new Date(subscription.dataInicio).toLocaleDateString("pt-BR") : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {subscription.dataFim ? new Date(subscription.dataFim).toLocaleDateString("pt-BR") : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => cancelSubscriptionMutation.mutate(subscription.id)}
+                      disabled={cancelSubscriptionMutation.isPending}
+                      data-testid={`button-cancel-subscription-${subscription.id}`}
+                    >
+                      Cancelar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

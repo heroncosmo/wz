@@ -10,6 +10,7 @@ import AdminPanel from "@/pages/admin";
 import AdminLogin from "@/pages/admin-login";
 import PlansPage from "@/pages/plans";
 import SubscribePage from "@/pages/subscribe";
+import SettingsPage from "@/pages/settings";
 import { useAuth } from "@/hooks/useAuth";
 
 function Router() {
@@ -26,6 +27,7 @@ function Router() {
           <Route path="/admin" component={AdminPanel} />
           <Route path="/plans" component={PlansPage} />
           <Route path="/subscribe/:id" component={SubscribePage} />
+          <Route path="/settings" component={SettingsPage} />
         </>
       )}
       <Route component={NotFound} />

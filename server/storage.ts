@@ -36,6 +36,7 @@ export interface IStorage {
   // User operations (IMPORTANT: mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, data: Partial<UpsertUser>): Promise<User>;
 
   // WhatsApp connection operations
   getConnectionByUserId(userId: string): Promise<WhatsappConnection | undefined>;
@@ -100,6 +101,12 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async updateUser(id: string, data: Partial<UpsertUser>): Promise<User> {
+    await db.update(users).set(data).where(eq(users.id, id));
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }

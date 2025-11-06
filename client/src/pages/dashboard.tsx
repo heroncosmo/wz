@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Settings, LogOut, Smartphone, Bot } from "lucide-react";
+import { MessageCircle, Settings, LogOut, Smartphone, Bot, CreditCard } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ConversationsList } from "@/components/conversations-list";
 import { ChatArea } from "@/components/chat-area";
@@ -88,17 +89,29 @@ export default function Dashboard() {
           >
             <Bot className="w-5 h-5" />
           </Button>
+          <Link href="/plans">
+            <Button
+              size="icon"
+              variant="ghost"
+              data-testid="button-nav-plans"
+              className="rounded-md"
+            >
+              <CreditCard className="w-5 h-5" />
+            </Button>
+          </Link>
         </div>
 
         <div className="flex flex-col gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            data-testid="button-settings"
-            className="rounded-md"
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
+          <Link href="/settings">
+            <Button
+              size="icon"
+              variant="ghost"
+              data-testid="button-settings"
+              className="rounded-md"
+            >
+              <Settings className="w-5 h-5" />
+            </Button>
+          </Link>
           <a href="/api/logout">
             <Button
               size="icon"
