@@ -60,12 +60,35 @@ export const messages = pgTable("messages", {
   text: text("text"),
   timestamp: timestamp("timestamp").notNull(),
   status: varchar("status", { length: 50 }),
+  isFromAgent: boolean("is_from_agent").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// AI Agent Configuration table
+export const aiAgentConfig = pgTable("ai_agent_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  prompt: text("prompt").notNull(),
+  isActive: boolean("is_active").default(false).notNull(),
+  model: varchar("model", { length: 100 }).default("mistral-small-latest").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Agent disabled conversations table
+export const agentDisabledConversations = pgTable("agent_disabled_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().unique().references(() => conversations.id, { onDelete: 'cascade' }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   whatsappConnections: many(whatsappConnections),
+  aiAgentConfig: one(aiAgentConfig, {
+    fields: [users.id],
+    references: [aiAgentConfig.userId],
+  }),
 }));
 
 export const whatsappConnectionsRelations = relations(whatsappConnections, ({ one, many }) => ({
@@ -82,6 +105,10 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
     references: [whatsappConnections.id],
   }),
   messages: many(messages),
+  agentDisabled: one(agentDisabledConversations, {
+    fields: [conversations.id],
+    references: [agentDisabledConversations.conversationId],
+  }),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
@@ -123,3 +150,18 @@ export const sendMessageSchema = z.object({
   text: z.string().min(1, "Message cannot be empty"),
 });
 export type SendMessage = z.infer<typeof sendMessageSchema>;
+
+export const insertAiAgentConfigSchema = createInsertSchema(aiAgentConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAiAgentConfig = z.infer<typeof insertAiAgentConfigSchema>;
+export type AiAgentConfig = typeof aiAgentConfig.$inferSelect;
+
+export const insertAgentDisabledConversationSchema = createInsertSchema(agentDisabledConversations).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAgentDisabledConversation = z.infer<typeof insertAgentDisabledConversationSchema>;
+export type AgentDisabledConversation = typeof agentDisabledConversations.$inferSelect;

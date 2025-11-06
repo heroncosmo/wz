@@ -3,6 +3,8 @@ import {
   whatsappConnections,
   conversations,
   messages,
+  aiAgentConfig,
+  agentDisabledConversations,
   type User,
   type UpsertUser,
   type WhatsappConnection,
@@ -11,6 +13,8 @@ import {
   type InsertConversation,
   type Message,
   type InsertMessage,
+  type AiAgentConfig,
+  type InsertAiAgentConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte } from "drizzle-orm";
@@ -36,6 +40,13 @@ export interface IStorage {
   getMessagesByConversationId(conversationId: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
   getTodayMessagesCount(connectionId: string): Promise<number>;
+
+  // AI Agent operations
+  getAgentConfig(userId: string): Promise<AiAgentConfig | undefined>;
+  upsertAgentConfig(userId: string, data: Partial<InsertAiAgentConfig>): Promise<AiAgentConfig>;
+  isAgentDisabledForConversation(conversationId: string): Promise<boolean>;
+  disableAgentForConversation(conversationId: string): Promise<void>;
+  enableAgentForConversation(conversationId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -171,6 +182,51 @@ export class DatabaseStorage implements IStorage {
       );
 
     return result.length;
+  }
+
+  // AI Agent operations
+  async getAgentConfig(userId: string): Promise<AiAgentConfig | undefined> {
+    const [config] = await db
+      .select()
+      .from(aiAgentConfig)
+      .where(eq(aiAgentConfig.userId, userId));
+    return config;
+  }
+
+  async upsertAgentConfig(userId: string, data: Partial<InsertAiAgentConfig>): Promise<AiAgentConfig> {
+    const [config] = await db
+      .insert(aiAgentConfig)
+      .values({ userId, ...data } as InsertAiAgentConfig)
+      .onConflictDoUpdate({
+        target: aiAgentConfig.userId,
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return config;
+  }
+
+  async isAgentDisabledForConversation(conversationId: string): Promise<boolean> {
+    const [disabled] = await db
+      .select()
+      .from(agentDisabledConversations)
+      .where(eq(agentDisabledConversations.conversationId, conversationId));
+    return !!disabled;
+  }
+
+  async disableAgentForConversation(conversationId: string): Promise<void> {
+    await db
+      .insert(agentDisabledConversations)
+      .values({ conversationId })
+      .onConflictDoNothing();
+  }
+
+  async enableAgentForConversation(conversationId: string): Promise<void> {
+    await db
+      .delete(agentDisabledConversations)
+      .where(eq(agentDisabledConversations.conversationId, conversationId));
   }
 }
 

@@ -9,7 +9,9 @@ import {
   sendMessage as whatsappSendMessage,
   addWebSocketClient,
 } from "./whatsapp";
-import { sendMessageSchema } from "@shared/schema";
+import { sendMessageSchema, insertAiAgentConfigSchema } from "@shared/schema";
+import { testAgentResponse } from "./aiAgent";
+import { z } from "zod";
 
 // Helper to get userId from authenticated request
 function getUserId(req: any): string {
@@ -195,6 +197,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // AI Agent routes
+  app.get("/api/agent/config", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const config = await storage.getAgentConfig(userId);
+      res.json(config || null);
+    } catch (error) {
+      console.error("Error fetching agent config:", error);
+      res.status(500).json({ message: "Failed to fetch agent config" });
+    }
+  });
+
+  app.post("/api/agent/config", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const result = insertAiAgentConfigSchema.partial().safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid request", errors: result.error });
+      }
+
+      const config = await storage.upsertAgentConfig(userId, result.data);
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating agent config:", error);
+      res.status(500).json({ message: "Failed to update agent config" });
+    }
+  });
+
+  app.post("/api/agent/test", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const schema = z.object({ message: z.string() });
+      const result = schema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+
+      const response = await testAgentResponse(userId, result.data.message);
+      res.json({ response });
+    } catch (error: any) {
+      console.error("Error testing agent:", error);
+      res.status(500).json({ message: error.message || "Failed to test agent" });
+    }
+  });
+
+  app.post("/api/agent/disable/:conversationId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = getUserId(req);
+
+      // Verify ownership
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const connection = await storage.getConnectionByUserId(userId);
+      if (!connection || conversation.connectionId !== connection.id) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      await storage.disableAgentForConversation(conversationId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error disabling agent:", error);
+      res.status(500).json({ message: "Failed to disable agent" });
+    }
+  });
+
+  app.post("/api/agent/enable/:conversationId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = getUserId(req);
+
+      // Verify ownership
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const connection = await storage.getConnectionByUserId(userId);
+      if (!connection || conversation.connectionId !== connection.id) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      await storage.enableAgentForConversation(conversationId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error enabling agent:", error);
+      res.status(500).json({ message: "Failed to enable agent" });
     }
   });
 
