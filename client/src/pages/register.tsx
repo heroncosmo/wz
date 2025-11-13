@@ -52,10 +52,27 @@ export default function Register() {
 
       toast({
         title: "Conta criada com sucesso!",
-        description: "Bem-vindo ao AgenteZap!",
+        description: "Fazendo login...",
       });
 
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      // Após criar o usuário via API (admin), autentica no cliente
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (loginError || !loginData?.session) {
+        // Se por algum motivo não logar, direciona para a tela de login
+        toast({
+          title: "Conta criada",
+          description: "Finalize entrando com seu email e senha.",
+        });
+        setLocation("/login");
+        return;
+      }
+
+      // Agora autenticado no cliente, atualiza cache e vai para o dashboard
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/dashboard");
     } catch (error) {
       console.error("Erro ao criar conta:", error);
@@ -150,4 +167,3 @@ export default function Register() {
     </div>
   );
 }
-
