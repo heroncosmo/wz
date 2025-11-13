@@ -85,8 +85,8 @@ export async function seedDatabase() {
       await db.insert(users).values({
         email: adminEmail,
         role: "owner",
-        firstName: "Rodrigo",
-        lastName: "Admin",
+        name: "Rodrigo Admin",
+        phone: "",
         onboardingCompleted: true,
       });
       console.log("✅ Admin user created in users table");

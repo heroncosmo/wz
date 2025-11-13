@@ -1,8 +1,11 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { restoreExistingSessions } from "./whatsapp";
+import { restoreExistingSessions, restoreAdminSessions } from "./whatsapp";
 import { seedDatabase } from "./seed";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 
@@ -59,6 +62,27 @@ app.use((req, res, next) => {
     throw err;
   });
 
+  // Serve static assets from findeas theme
+  const findeasThemePath = path.join(process.cwd(), 'findeas theme');
+  app.use('/assets', express.static(path.join(findeasThemePath, 'assets')));
+
+  // Serve landing page HTML for unauthenticated root route
+  app.get('/', (req: Request, res: Response, next) => {
+    // Check if user is authenticated by looking for session cookie
+    const hasAuthCookie = req.headers.cookie?.includes('connect.sid');
+
+    if (!hasAuthCookie) {
+      // Serve the static landing page HTML
+      const landingPath = path.join(findeasThemePath, 'landing-5.html');
+      if (fs.existsSync(landingPath)) {
+        return res.sendFile(landingPath);
+      }
+    }
+
+    // If authenticated or landing page not found, continue to Vite/React
+    next();
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
@@ -75,8 +99,7 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: "localhost",
   }, async () => {
     log(`serving on port ${port}`);
     
@@ -90,6 +113,11 @@ app.use((req, res, next) => {
     // Restore WhatsApp sessions after server starts
     restoreExistingSessions().catch((error) => {
       console.error("Failed to restore WhatsApp sessions:", error);
+    });
+
+    // Restore admin WhatsApp sessions
+    restoreAdminSessions().catch((error) => {
+      console.error("Failed to restore admin WhatsApp sessions:", error);
     });
   });
 })();

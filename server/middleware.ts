@@ -15,6 +15,10 @@ export async function isAdmin(req: Request, res: Response, next: NextFunction) {
   try {
     // Check for admin session (email/password login)
     const adminId = (req.session as any)?.adminId;
+    // debug minimal
+    if (process.env.DEBUG_AUTH === '1') {
+      console.log('[isAdmin] path', req.path, 'adminId', adminId);
+    }
     if (adminId) {
       const [admin] = await db
         .select()

@@ -1,100 +1,125 @@
-import { Button } from "@/components/ui/button";
-import { MessageCircle, Users, Zap, Shield, BarChart3 } from "lucide-react";
+import { useEffect } from "react";
+import AOS from "aos";
+import "aos/dist/aos.css";
+import HeaderFindeas from "../components/landing/findeas/HeaderFindeas";
+import HeroFindeas from "../components/landing/findeas/HeroFindeas";
+import FeaturesFindeas from "../components/landing/findeas/FeaturesFindeas";
+import ProcessFindeas from "../components/landing/findeas/ProcessFindeas";
+import TestimonialsFindeas from "../components/landing/findeas/TestimonialsFindeas";
+import FAQFindeas from "../components/landing/findeas/FAQFindeas";
+import FooterFindeas from "../components/landing/findeas/FooterFindeas";
 
 export default function Landing() {
+  useEffect(() => {
+    // Initialize AOS
+    AOS.init({
+      duration: 800,
+      once: true,
+      offset: 100
+    });
+    
+    // Smooth scroll behavior
+    document.documentElement.style.scrollBehavior = 'smooth';
+    
+    // Set page title
+    document.title = 'AgenteZap - IA que Transforma WhatsApp em Máquina de Vendas';
+    
+    // Set meta description
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Transforme seu WhatsApp em máquina de vendas automática. IA que atende, qualifica e vende 24/7. +2.847 empresas já vendendo mais. Setup em 2 minutos.');
+    }
+    
+    // Add structured data for SEO
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "AgenteZap",
+      "description": "IA que transforma WhatsApp em máquina de vendas automática",
+      "url": "https://agentezap.com",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "97",
+        "priceCurrency": "BRL",
+        "priceValidUntil": "2025-12-31"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "2847"
+      }
+    };
+    
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(structuredData);
+    document.head.appendChild(script);
+    
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-6 h-6 text-primary" />
-            <span className="font-semibold text-lg">WhatsApp CRM</span>
-          </div>
-          <a href="/api/login">
-            <Button data-testid="button-login">Entrar</Button>
-          </a>
-        </div>
-      </header>
-
-      <main>
-        <section className="container mx-auto px-4 py-20 md:py-32">
-          <div className="max-w-3xl mx-auto text-center space-y-8">
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              Gerencie todas as suas{" "}
-              <span className="text-primary">conversas do WhatsApp</span> em um só lugar
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Conecte seu WhatsApp e responda seus clientes de forma profissional através da nossa plataforma CRM completa.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a href="/api/login">
-                <Button size="lg" className="w-full sm:w-auto" data-testid="button-get-started">
-                  Começar Agora
-                </Button>
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <section className="container mx-auto px-4 py-16 md:py-24">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center space-y-4 p-6">
-              <div className="w-12 h-12 mx-auto rounded-md bg-primary/10 flex items-center justify-center">
-                <Zap className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg">Conexão Rápida</h3>
-              <p className="text-sm text-muted-foreground">
-                Conecte seu WhatsApp em segundos usando QR Code. Simples e seguro.
-              </p>
-            </div>
-
-            <div className="text-center space-y-4 p-6">
-              <div className="w-12 h-12 mx-auto rounded-md bg-primary/10 flex items-center justify-center">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg">Gestão Centralizada</h3>
-              <p className="text-sm text-muted-foreground">
-                Visualize e responda todas as conversas em uma interface limpa e organizada.
-              </p>
-            </div>
-
-            <div className="text-center space-y-4 p-6">
-              <div className="w-12 h-12 mx-auto rounded-md bg-primary/10 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg">Seguro e Confiável</h3>
-              <p className="text-sm text-muted-foreground">
-                Suas conversas e dados protegidos com criptografia de ponta a ponta.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-muted/50 py-16 md:py-24">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center space-y-6">
-              <BarChart3 className="w-12 h-12 mx-auto text-primary" />
-              <h2 className="text-3xl md:text-4xl font-bold">
-                Pronto para melhorar seu atendimento?
-              </h2>
-              <p className="text-muted-foreground text-lg">
-                Comece a usar o WhatsApp CRM hoje e transforme a forma como você se comunica com seus clientes.
-              </p>
-              <a href="/api/login">
-                <Button size="lg" data-testid="button-cta">
-                  Acessar Plataforma
-                </Button>
-              </a>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2025 WhatsApp CRM. Todos os direitos reservados.</p>
-        </div>
-      </footer>
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <HeaderFindeas />
+      
+      {/* Hero Section */}
+      <HeroFindeas />
+      
+      {/* Features Section */}
+      <FeaturesFindeas />
+      
+      {/* Process Section */}
+      <ProcessFindeas />
+      
+      {/* Testimonials Section */}
+      <TestimonialsFindeas />
+      
+      {/* FAQ Section */}
+      <FAQFindeas />
+      
+      {/* Footer */}
+      <FooterFindeas />
+      
+      {/* Floating CTA Button (Mobile) */}
+      <a 
+        href="#signup"
+        className="fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 flex items-center gap-2 lg:hidden"
+      >
+        Começar Agora
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5-5m5 5H6" />
+        </svg>
+      </a>
+      
+      {/* Schema Markup for SEO */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "AgenteZap",
+          "url": "https://agentezap.com",
+          "logo": "https://agentezap.com/logo.png",
+          "description": "IA que transforma WhatsApp em máquina de vendas automática",
+          "sameAs": [
+            "https://facebook.com/agentezap",
+            "https://twitter.com/agentezap",
+            "https://instagram.com/agentezap"
+          ],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+55-11-9999-8888",
+            "contactType": "customer service",
+            "availableLanguage": "Portuguese"
+          }
+        })
+      }} />
     </div>
   );
 }

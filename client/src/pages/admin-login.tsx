@@ -37,6 +37,16 @@ export default function AdminLogin() {
           title: "Sucesso",
           description: "Login realizado com sucesso!",
         });
+        // Aguarda a sessão ser persistida e o cookie ser aplicado
+        let authenticated = false;
+        for (let i = 0; i < 10; i++) {
+          try {
+            const s = await fetch("/api/admin/session", { credentials: "include" });
+            const j = await s.json();
+            if (j?.authenticated) { authenticated = true; break; }
+          } catch {}
+          await new Promise((r) => setTimeout(r, 150));
+        }
         setLocation("/admin");
       }
     } catch (error: any) {

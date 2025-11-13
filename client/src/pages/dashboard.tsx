@@ -1,28 +1,145 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Settings, LogOut, Smartphone, Bot, CreditCard } from "lucide-react";
+import { MessageCircle, Settings, LogOut, Smartphone, Bot, CreditCard, LayoutDashboard, AlertCircle, Send, Kanban, Users, Tags, Filter, Plug, CalendarClock, BedDouble, Wrench, ChevronDown, Megaphone, Brain } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarInset,
+  SidebarSeparator,
+} from "@/components/ui/sidebar";
 import { ConversationsList } from "@/components/conversations-list";
 import { ChatArea } from "@/components/chat-area";
 import { ConnectionPanel } from "@/components/connection-panel";
 import { DashboardStats } from "@/components/dashboard-stats";
 import MyAgent from "@/pages/my-agent";
-import type { WhatsappConnection } from "@shared/schema";
+import PlansPage from "@/pages/plans";
+import SubscribePage from "@/pages/subscribe";
+import SettingsPage from "@/pages/settings";
+import MassSendPage from "@/pages/mass-send";
+import CampaignsPage from "@/pages/campaigns";
+import KanbanPage from "@/pages/kanban";
+import ContactsPage from "@/pages/contacts";
+import TagsPage from "@/pages/tags";
+import FunnelPage from "@/pages/funnel";
+import IntegrationsPage from "@/pages/integrations";
+import SchedulingPage from "@/pages/scheduling";
+import ReservationsPage from "@/pages/reservations";
+import LeadQualificationPage from "@/pages/lead-qualification";
+import { useLocation } from "wouter";
+import type { WhatsappConnection, AiAgentConfig } from "@shared/schema";
+import { supabase } from "@/lib/supabase";
+import { queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const [selectedView, setSelectedView] = useState<"conversations" | "connection" | "stats" | "agent">("conversations");
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [location, setLocation] = useLocation();
+  const isPlansRoute = location.startsWith("/plans");
+  const isSettingsRoute = location.startsWith("/settings");
+  const isSubscribeRoute = location.startsWith("/subscribe/");
+  const isMassSendRoute = location.startsWith("/envio-em-massa");
+  const isCampaignsRoute = location.startsWith("/campanhas");
+  const isKanbanRoute = location.startsWith("/kanban");
+  const isContactsRoute = location.startsWith("/contatos");
+  const isTagsRoute = location.startsWith("/etiquetas");
+  const isFunnelRoute = location.startsWith("/funil");
+  const isIntegrationsRoute = location.startsWith("/integracoes");
+  const isSchedulingRoute = location.startsWith("/agendamentos");
+  const isReservationsRoute = location.startsWith("/reservas");
+  const isLeadQualificationRoute = location.startsWith("/qualificacao");
+  const isDashboardMode =
+    !isPlansRoute &&
+    !isSettingsRoute &&
+    !isSubscribeRoute &&
+    !isMassSendRoute &&
+    !isCampaignsRoute &&
+    !isKanbanRoute &&
+    !isContactsRoute &&
+    !isTagsRoute &&
+    !isFunnelRoute &&
+    !isIntegrationsRoute &&
+    !isSchedulingRoute &&
+    !isReservationsRoute &&
+    !isLeadQualificationRoute;
+  const isToolsRoute =
+    isPlansRoute ||
+    isSettingsRoute ||
+    isSubscribeRoute ||
+    isMassSendRoute ||
+    isCampaignsRoute ||
+    isKanbanRoute ||
+    isContactsRoute ||
+    isTagsRoute ||
+    isFunnelRoute ||
+    isIntegrationsRoute ||
+    isSchedulingRoute ||
+    isReservationsRoute ||
+    isLeadQualificationRoute;
+  const [toolsOpen, setToolsOpen] = useState(true);
+  const [toolsPickerOpen, setToolsPickerOpen] = useState(false);
+
+  const goToSection = (view: "conversations" | "connection" | "stats" | "agent") => {
+    setSelectedView(view);
+    if (location !== "/" && !location.startsWith("/dashboard")) {
+      setLocation("/dashboard");
+    }
+  };
+
+  useEffect(() => {
+    if (isToolsRoute) {
+      setToolsOpen(true);
+    }
+  }, [isToolsRoute]);
+
+  const handleLogout = async () => {
+    try {
+      // Limpa a sessÃ£o local do Supabase (token)
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Erro ao sair (supabase):", err);
+    }
+
+    try {
+      // Limpa a sessÃ£o de servidor (se existir)
+      await fetch("/api/logout", { credentials: "include" });
+    } catch (err) {
+      console.warn("Falha ao chamar /api/logout:", err);
+    }
+
+    try {
+      // Limpa cache de consultas relacionadas a auth
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      await queryClient.clear();
+    } catch {}
+
+    // Redireciona para tela de login
+    setLocation("/login");
+  };
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
-        title: "Não autorizado",
-        description: "Você precisa fazer login. Redirecionando...",
+        title: "NÃ£o autorizado",
+        description: "VocÃª precisa fazer login. Redirecionando...",
         variant: "destructive",
       });
       setTimeout(() => {
@@ -37,6 +154,45 @@ export default function Dashboard() {
     enabled: isAuthenticated,
   });
 
+  const { data: agentConfig } = useQuery<AiAgentConfig | null>({
+    queryKey: ["/api/agent/config"],
+  });
+
+type ToolNavItem = {
+  label: string;
+  icon: LucideIcon;
+  tooltip: string;
+  isActive: boolean;
+  testId: string;
+  href?: string;
+  action?: () => void;
+};
+
+const toolsNavigation: ToolNavItem[] = [
+  {
+    label: "Inteligência Artificial",
+    icon: Bot,
+    tooltip: "Meu Agente IA",
+    isActive: isDashboardMode && selectedView === "agent",
+    testId: "button-nav-ai",
+    action: () => {
+      goToSection("agent");
+    },
+  },
+  { label: "Qualificação de Lead", href: "/qualificacao", icon: Brain, tooltip: "Análise por IA das conversas", isActive: isLeadQualificationRoute, testId: "button-nav-lead-qualification" },
+  { label: "Envio em Massa", href: "/envio-em-massa", icon: Send, tooltip: "Envio em massa", isActive: isMassSendRoute, testId: "button-nav-masssend" },
+  { label: "Campanhas", href: "/campanhas", icon: Megaphone, tooltip: "Campanhas", isActive: isCampaignsRoute, testId: "button-nav-campaigns" },
+  { label: "Kanban", href: "/kanban", icon: Kanban, tooltip: "Kanban", isActive: isKanbanRoute, testId: "button-nav-kanban" },
+    { label: "Contatos", href: "/contatos", icon: Users, tooltip: "Contatos", isActive: isContactsRoute, testId: "button-nav-contacts" },
+    { label: "Etiquetas", href: "/etiquetas", icon: Tags, tooltip: "Etiquetas", isActive: isTagsRoute, testId: "button-nav-tags" },
+    { label: "Funil", href: "/funil", icon: Filter, tooltip: "Funil de vendas", isActive: isFunnelRoute, testId: "button-nav-funnel" },
+    { label: "Integrações", href: "/integracoes", icon: Plug, tooltip: "Integrações", isActive: isIntegrationsRoute, testId: "button-nav-integrations" },
+    { label: "Agendamentos", href: "/agendamentos", icon: CalendarClock, tooltip: "Agendamentos", isActive: isSchedulingRoute, testId: "button-nav-scheduling" },
+    { label: "Reservas", href: "/reservas", icon: BedDouble, tooltip: "Reservas", isActive: isReservationsRoute, testId: "button-nav-reservations" },
+    { label: "Planos", href: "/plans", icon: CreditCard, tooltip: "Planos e assinatura", isActive: isPlansRoute || isSubscribeRoute, testId: "button-nav-plans" },
+    { label: "Configurações", href: "/settings", icon: Settings, tooltip: "Configurações", isActive: isSettingsRoute, testId: "button-settings" },
+  ];
+
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center">
@@ -49,123 +205,346 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
-      {/* Sidebar Navigation */}
-      <div className="w-16 border-r bg-sidebar flex flex-col items-center py-4 gap-2">
-        <div className="flex flex-col gap-2 flex-1">
-          <Button
-            size="icon"
-            variant={selectedView === "stats" ? "default" : "ghost"}
-            onClick={() => setSelectedView("stats")}
-            data-testid="button-nav-stats"
-            className="rounded-md"
-          >
-            <MessageCircle className="w-5 h-5" />
-          </Button>
-          <Button
-            size="icon"
-            variant={selectedView === "conversations" ? "default" : "ghost"}
-            onClick={() => setSelectedView("conversations")}
-            data-testid="button-nav-conversations"
-            className="rounded-md"
-          >
-            <MessageCircle className="w-5 h-5" />
-          </Button>
-          <Button
-            size="icon"
-            variant={selectedView === "connection" ? "default" : "ghost"}
-            onClick={() => setSelectedView("connection")}
-            data-testid="button-nav-connection"
-            className="rounded-md"
-          >
-            <Smartphone className="w-5 h-5" />
-          </Button>
-          <Button
-            size="icon"
-            variant={selectedView === "agent" ? "default" : "ghost"}
-            onClick={() => setSelectedView("agent")}
-            data-testid="button-nav-agent"
-            className="rounded-md"
-          >
-            <Bot className="w-5 h-5" />
-          </Button>
-          <Link href="/plans">
-            <Button
-              size="icon"
-              variant="ghost"
-              data-testid="button-nav-plans"
-              className="rounded-md"
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <div className="px-2 py-1.5 text-sm font-semibold flex items-center gap-2"><Bot className="w-4 h-4 text-muted-foreground" /><span>AgenteZap</span></div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => goToSection("stats")}
+                  isActive={isDashboardMode && selectedView === "stats"}
+                  tooltip="VisÃ£o geral"
+                  data-testid="button-nav-stats"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => goToSection("conversations")}
+                  isActive={isDashboardMode && selectedView === "conversations"}
+                  tooltip="Conversas"
+                  data-testid="button-nav-conversations"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Conversas</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => goToSection("connection")}
+                  isActive={isDashboardMode && selectedView === "connection"}
+                  tooltip="Conexão WhatsApp"
+                  data-testid="button-nav-connection"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>Conexão</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => goToSection("agent")}
+                  isActive={isDashboardMode && selectedView === "agent"}
+                  tooltip="Meu Agente IA"
+                  data-testid="button-nav-agent"
+                >
+                  <Bot className="w-4 h-4" />
+                  <span>Meu Agente IA</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem className="mt-4 pt-3 border-t border-sidebar-border/50">
+                <Collapsible open={toolsOpen} onOpenChange={setToolsOpen} className="group">
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip="Ferramentas"
+                      isActive={isToolsRoute}
+                      data-testid="button-nav-tools"
+                      aria-expanded={toolsOpen}
+                    >
+                      <Wrench className="w-4 h-4" />
+                      <span>Ferramentas</span>
+                      <ChevronDown
+                        className={cn(
+                          "ml-auto h-3.5 w-3.5 transition-transform",
+                          toolsOpen ? "rotate-180" : "rotate-0"
+                        )}
+                      />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1 pt-1">
+                    {toolsNavigation.map((item) => (
+                      <SidebarMenuItem key={item.label} className="pl-4">
+                        {item.href ? (
+                          <SidebarMenuButton
+                            asChild
+                            size="sm"
+                            className="text-xs"
+                            tooltip={item.tooltip}
+                            isActive={item.isActive}
+                            data-testid={item.testId}
+                          >
+                            <Link href={item.href}>
+                              <span className="flex items-center gap-2">
+                                <item.icon className="w-3.5 h-3.5" />
+                                <span>{item.label}</span>
+                              </span>
+                            </Link>
+                          </SidebarMenuButton>
+                        ) : (
+                          <SidebarMenuButton
+                            size="sm"
+                            className="text-xs"
+                            tooltip={item.tooltip}
+                            isActive={item.isActive}
+                            data-testid={item.testId}
+                            onClick={item.action}
+                          >
+                            <span className="flex items-center gap-2">
+                              <item.icon className="w-3.5 h-3.5" />
+                              <span>{item.label}</span>
+                            </span>
+                          </SidebarMenuButton>
+                        )}
+                      </SidebarMenuItem>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarSeparator />
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Sair" data-testid="button-logout" onClick={handleLogout}>
+                <span className="flex items-center gap-2">
+                  <LogOut className="w-4 h-4" />
+                  <span>Sair</span>
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <div className="flex-1 flex overflow-hidden pb-20 md:pb-0">
+          {isPlansRoute && (
+            <div className="flex-1 overflow-auto">
+              <PlansPage />
+            </div>
+          )}
+          {isMassSendRoute && (
+            <div className="flex-1 overflow-auto">
+              <MassSendPage />
+            </div>
+          )}
+          {isCampaignsRoute && (
+            <div className="flex-1 overflow-auto">
+              <CampaignsPage />
+            </div>
+          )}
+          {isKanbanRoute && (
+            <div className="flex-1 overflow-auto">
+              <KanbanPage />
+            </div>
+          )}
+          {isContactsRoute && (
+            <div className="flex-1 overflow-auto">
+              <ContactsPage />
+            </div>
+          )}
+          {isTagsRoute && (
+            <div className="flex-1 overflow-auto">
+              <TagsPage />
+            </div>
+          )}
+          {isFunnelRoute && (
+            <div className="flex-1 overflow-auto">
+              <FunnelPage />
+            </div>
+          )}
+          {isIntegrationsRoute && (
+            <div className="flex-1 overflow-auto">
+              <IntegrationsPage />
+            </div>
+          )}
+          {isLeadQualificationRoute && (
+            <div className="flex-1 overflow-auto">
+              <LeadQualificationPage />
+            </div>
+          )}
+          {isSchedulingRoute && (
+            <div className="flex-1 overflow-auto">
+              <SchedulingPage />
+            </div>
+          )}
+          {isReservationsRoute && (
+            <div className="flex-1 overflow-auto">
+              <ReservationsPage />
+            </div>
+          )}
+          {isSettingsRoute && (
+            <div className="flex-1 overflow-auto">
+              <SettingsPage />
+            </div>
+          )}
+          {isSubscribeRoute && (
+            <div className="flex-1 overflow-auto">
+              <SubscribePage />
+            </div>
+          )}
+            {isDashboardMode && (
+              <>
+            {selectedView === "stats" && (
+              <div className="flex-1 overflow-auto">
+                <DashboardStats connection={connection} />
+              </div>
+          )}
+
+          {selectedView === "connection" && (
+            <div className="flex-1 overflow-auto">
+              <ConnectionPanel />
+            </div>
+          )}
+
+          {selectedView === "agent" && (
+            <div className="flex-1 overflow-auto">
+              <MyAgent />
+            </div>
+          )}
+
+          {selectedView === "conversations" && (
+            <>
+              <div className="w-80 border-r bg-card flex flex-col">
+                <ConversationsList
+                  connectionId={connection?.id}
+                  selectedConversationId={selectedConversationId}
+                  onSelectConversation={setSelectedConversationId}
+                />
+              </div>
+              <div className="flex-1 flex flex-col">
+                {false && (
+                  <div className="p-4 space-y-3">
+                    {!agentConfig && (
+                      <Card className="p-4 bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
+                          <div className="space-y-2">
+                            <h3 className="font-semibold text-orange-900 dark:text-orange-100">Configure seu Agente IA</h3>
+                            <p className="text-sm text-orange-800 dark:text-orange-200">Defina seu agente para automatizar respostas.</p>
+                            <Button variant="outline" size="sm" onClick={() => goToSection("agent")} data-testid="onboarding-configure-agent">
+                              <Bot className="w-4 h-4 mr-2" />
+                              Configurar Agente
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+                    {!connection?.isConnected && (
+                      <Card className="p-4 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+                        <div className="flex items-start gap-3">
+                          <Smartphone className="w-5 h-5 text-blue-600 mt-0.5" />
+                          <div className="space-y-2">
+                            <h3 className="font-semibold text-blue-900 dark:text-blue-100">Conecte seu WhatsApp</h3>
+                            <p className="text-sm text-blue-800 dark:text-blue-200">Escaneie o QR Code para comeÃ§ar a conversar.</p>
+                            <Button variant="outline" size="sm" onClick={() => goToSection("connection")} data-testid="onboarding-connect-whatsapp">
+                              Conectar WhatsApp
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                )}
+                <ChatArea conversationId={selectedConversationId} connectionId={connection?.id} />
+              </div>
+            </>
+          )}
+            </>
+          )}
+        </div>
+        {/* Mobile bottom navigation */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background">
+          <div className="grid grid-cols-5 text-xs">
+            <button
+              className={`flex flex-col items-center py-2 ${isDashboardMode && selectedView === "stats" ? "text-primary" : "text-muted-foreground"}`}
+              onClick={() => goToSection("stats")}
             >
-              <CreditCard className="w-5 h-5" />
-            </Button>
-          </Link>
+              <LayoutDashboard className="w-5 h-5" />
+              <span>Dashboard</span>
+            </button>
+            <button
+              className={`flex flex-col items-center py-2 ${isDashboardMode && selectedView === "conversations" ? "text-primary" : "text-muted-foreground"}`}
+              onClick={() => goToSection("conversations")}
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span>Conversas</span>
+            </button>
+            <button
+              className={`flex flex-col items-center py-2 ${isDashboardMode && selectedView === "connection" ? "text-primary" : "text-muted-foreground"}`}
+              onClick={() => goToSection("connection")}
+            >
+              <Smartphone className="w-5 h-5" />
+              <span>Conexão</span>
+            </button>
+            <button
+              className={`flex flex-col items-center py-2 ${isDashboardMode && selectedView === "agent" ? "text-primary" : "text-muted-foreground"}`}
+              onClick={() => goToSection("agent")}
+            >
+              <Bot className="w-5 h-5" />
+              <span>Agente</span>
+            </button>
+            <button
+              className={`flex flex-col items-center py-2 ${isToolsRoute ? "text-primary" : "text-muted-foreground"}`}
+              onClick={() => setToolsPickerOpen(true)}
+            >
+              <Wrench className="w-5 h-5" />
+              <span>Ferramentas</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Link href="/settings">
-            <Button
-              size="icon"
-              variant="ghost"
-              data-testid="button-settings"
-              className="rounded-md"
-            >
-              <Settings className="w-5 h-5" />
-            </Button>
-          </Link>
-          <a href="/api/logout">
-            <Button
-              size="icon"
-              variant="ghost"
-              data-testid="button-logout"
-              className="rounded-md"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </a>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {selectedView === "stats" && (
-          <div className="flex-1 overflow-auto">
-            <DashboardStats connection={connection} />
-          </div>
-        )}
-
-        {selectedView === "connection" && (
-          <div className="flex-1 overflow-auto">
-            <ConnectionPanel />
-          </div>
-        )}
-
-        {selectedView === "agent" && (
-          <div className="flex-1 overflow-auto">
-            <MyAgent />
-          </div>
-        )}
-
-        {selectedView === "conversations" && (
-          <>
-            {/* Conversations List */}
-            <div className="w-80 border-r bg-card flex flex-col">
-              <ConversationsList
-                connectionId={connection?.id}
-                selectedConversationId={selectedConversationId}
-                onSelectConversation={setSelectedConversationId}
-              />
+        {/* Drawer de seleção de ferramentas (mobile) */}
+        <Drawer open={toolsPickerOpen} onOpenChange={setToolsPickerOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Ferramentas</DrawerTitle>
+              <DrawerDescription>Escolha uma ferramenta para abrir</DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 grid grid-cols-3 gap-3">
+              {toolsNavigation.map((item) => (
+                <button
+                  key={item.testId}
+                  className={`border rounded-md p-3 flex flex-col items-center gap-2 text-xs ${item.isActive ? "border-primary text-primary" : "text-foreground"}`}
+                  onClick={() => {
+                    if (item.href) {
+                      setLocation(item.href);
+                    } else if (item.action) {
+                      item.action();
+                    }
+                    setToolsPickerOpen(false);
+                  }}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="text-center leading-tight">{item.label}</span>
+                </button>
+              ))}
             </div>
-
-            {/* Chat Area */}
-            <div className="flex-1 flex flex-col">
-              <ChatArea
-                conversationId={selectedConversationId}
-                connectionId={connection?.id}
-              />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          </DrawerContent>
+        </Drawer>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
+
+
+
+
+

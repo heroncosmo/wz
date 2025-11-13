@@ -30,6 +30,16 @@ export default {
           DEFAULT: "hsl(var(--primary) / <alpha-value>)",
           foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
           border: "var(--primary-border)",
+          50: "hsl(var(--primary-50) / <alpha-value>)",
+          100: "hsl(var(--primary-100) / <alpha-value>)",
+          200: "hsl(var(--primary-200) / <alpha-value>)",
+          300: "hsl(var(--primary-300) / <alpha-value>)",
+          400: "hsl(var(--primary-400) / <alpha-value>)",
+          500: "hsl(var(--primary-500) / <alpha-value>)",
+          600: "hsl(var(--primary-600) / <alpha-value>)",
+          700: "hsl(var(--primary-700) / <alpha-value>)",
+          800: "hsl(var(--primary-800) / <alpha-value>)",
+          900: "hsl(var(--primary-900) / <alpha-value>)",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
@@ -80,6 +90,43 @@ export default {
           away: "rgb(245 158 11)",
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
+        },
+        // Minimalista 2025 - Escala Neutra Completa
+        neutral: {
+          50: "hsl(var(--neutral-50) / <alpha-value>)",
+          100: "hsl(var(--neutral-100) / <alpha-value>)",
+          200: "hsl(var(--neutral-200) / <alpha-value>)",
+          300: "hsl(var(--neutral-300) / <alpha-value>)",
+          400: "hsl(var(--neutral-400) / <alpha-value>)",
+          500: "hsl(var(--neutral-500) / <alpha-value>)",
+          600: "hsl(var(--neutral-600) / <alpha-value>)",
+          700: "hsl(var(--neutral-700) / <alpha-value>)",
+          800: "hsl(var(--neutral-800) / <alpha-value>)",
+          900: "hsl(var(--neutral-900) / <alpha-value>)",
+        },
+        // MINIMALISTA 2025 - Sistema de Cores Profissional
+        // Core Brand - WhatsApp Green
+        success: "hsl(var(--success) / <alpha-value>)",      // WhatsApp Green #25D366
+        
+        // Accent Tech - Professional Blue  
+        info: "hsl(var(--info) / <alpha-value>)",            // Tech Blue #0EA5E9
+        
+        // Error States - Attention Red
+        error: "hsl(var(--error) / <alpha-value>)",          // Error Red #EF4444
+        
+        // Warning States - Attention Amber
+        warning: "hsl(var(--warning) / <alpha-value>)",        // Warning Amber #F59E0B
+        
+        // Highlight - Amber Attention
+        highlight: "hsl(var(--highlight) / <alpha-value>)",       // Highlight Amber #F59E0B
+        
+        // Findeas Theme Colors
+        findeas: {
+          primary: "hsl(var(--findeas-primary) / <alpha-value>)",     // Deep Blue #1E40AF
+          secondary: "hsl(var(--findeas-secondary) / <alpha-value>)", // Light Blue #3B82F6
+          accent: "hsl(var(--findeas-accent) / <alpha-value>)",       // Vibrant Blue #0EA5E9
+          light: "hsl(var(--findeas-light) / <alpha-value)",          // Very Light Blue #EFF6FF
+          dark: "hsl(var(--findeas-dark) / <alpha-value)",            // Dark Blue #1E293B
         },
       },
       fontFamily: {

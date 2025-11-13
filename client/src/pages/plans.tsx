@@ -32,10 +32,10 @@ export default function PlansPage() {
       setLocation(`/subscribe/${data.id}`);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Erro ao criar assinatura", 
+      toast({
+        title: "Erro ao criar assinatura",
         description: error.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
     },
   });
@@ -49,6 +49,12 @@ export default function PlansPage() {
   }
 
   const hasActiveSubscription = currentSubscription?.status === "active";
+
+  const formatConversas = (n: number) =>
+    n === -1 ? "Conversas simultâneas ilimitadas" : `${n} conversas simultâneas`;
+
+  const formatAgentes = (n: number) =>
+    n === -1 ? "Agentes IA ilimitados" : `${n} agente${n > 1 ? "s" : ""} IA`;
 
   return (
     <div className="flex-1 overflow-auto p-6">
@@ -65,18 +71,14 @@ export default function PlansPage() {
         {hasActiveSubscription && (
           <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
             <p className="text-center text-green-700 dark:text-green-300">
-              Você já possui uma assinatura ativa do plano <strong>{currentSubscription.plan.nome}</strong>
+              Você já possui uma assinatura ativa do plano <strong>{currentSubscription!.plan.nome}</strong>
             </p>
           </div>
         )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {plans?.map((plan) => (
-            <Card 
-              key={plan.id} 
-              className="flex flex-col" 
-              data-testid={`card-plan-${plan.id}`}
-            >
+            <Card key={plan.id} className="flex flex-col" data-testid={`card-plan-${plan.id}`}>
               <CardHeader>
                 <CardTitle className="text-2xl" data-testid={`text-plan-name-${plan.id}`}>
                   {plan.nome}
@@ -90,11 +92,11 @@ export default function PlansPage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>{plan.limiteConversas} conversas simultâneas</span>
+                    <span>{formatConversas(plan.limiteConversas)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>{plan.limiteAgentes} agente{plan.limiteAgentes > 1 ? "s" : ""} IA</span>
+                    <span>{formatAgentes(plan.limiteAgentes)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
@@ -136,3 +138,4 @@ export default function PlansPage() {
     </div>
   );
 }
+

@@ -44,6 +44,12 @@ export async function setupVite(app: Express, server: Server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // Skip serving React app for root route if user is not authenticated
+    // This allows the static landing page to be served instead
+    if (url === '/' && !req.headers.cookie?.includes('connect.sid')) {
+      return next();
+    }
+
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,

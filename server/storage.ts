@@ -2,6 +2,7 @@ import {
   users,
   admins,
   whatsappConnections,
+  adminWhatsappConnection,
   conversations,
   messages,
   aiAgentConfig,
@@ -14,6 +15,8 @@ import {
   type UpsertUser,
   type WhatsappConnection,
   type InsertWhatsappConnection,
+  type AdminWhatsappConnection,
+  type InsertAdminWhatsappConnection,
   type Conversation,
   type InsertConversation,
   type Message,
@@ -91,6 +94,12 @@ export interface IStorage {
 
   // Admin operations
   getAdminByEmail(email: string): Promise<any | undefined>;
+  getAllAdmins(): Promise<any[]>;
+
+  // Admin WhatsApp connection operations
+  getAdminWhatsappConnection(adminId: string): Promise<AdminWhatsappConnection | undefined>;
+  createAdminWhatsappConnection(connection: InsertAdminWhatsappConnection): Promise<AdminWhatsappConnection>;
+  updateAdminWhatsappConnection(adminId: string, data: Partial<InsertAdminWhatsappConnection>): Promise<AdminWhatsappConnection>;
 
   // Admin stats
   getAllUsers(): Promise<User[]>;
@@ -471,6 +480,36 @@ export class DatabaseStorage implements IStorage {
       .from(admins)
       .where(eq(admins.email, email));
     return admin;
+  }
+
+  async getAllAdmins(): Promise<any[]> {
+    return await db.select().from(admins);
+  }
+
+  // Admin WhatsApp connection operations
+  async getAdminWhatsappConnection(adminId: string): Promise<AdminWhatsappConnection | undefined> {
+    const [connection] = await db
+      .select()
+      .from(adminWhatsappConnection)
+      .where(eq(adminWhatsappConnection.adminId, adminId));
+    return connection;
+  }
+
+  async createAdminWhatsappConnection(connection: InsertAdminWhatsappConnection): Promise<AdminWhatsappConnection> {
+    const [created] = await db
+      .insert(adminWhatsappConnection)
+      .values(connection)
+      .returning();
+    return created;
+  }
+
+  async updateAdminWhatsappConnection(adminId: string, data: Partial<InsertAdminWhatsappConnection>): Promise<AdminWhatsappConnection> {
+    const [updated] = await db
+      .update(adminWhatsappConnection)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(adminWhatsappConnection.adminId, adminId))
+      .returning();
+    return updated;
   }
 
   // Admin stats

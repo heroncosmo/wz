@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Smartphone, QrCode, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getAuthToken } from "@/lib/supabase";
 import type { WhatsappConnection } from "@shared/schema";
 
 export function ConnectionPanel() {
@@ -58,36 +59,63 @@ export function ConnectionPanel() {
   });
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const socket = new WebSocket(wsUrl);
+    let socket: WebSocket | null = null;
 
-    socket.onmessage = (event) => {
+    const connectWebSocket = async () => {
       try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === "qr") {
-          setQrCode(data.qr);
-        } else if (data.type === "connected") {
-          setQrCode(null);
-          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
-          toast({
-            title: "Conectado!",
-            description: "WhatsApp conectado com sucesso",
-          });
-        } else if (data.type === "disconnected") {
-          setQrCode(null);
-          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
+        const token = await getAuthToken();
+
+        if (!token) {
+          console.error("No auth token available for WebSocket connection");
+          return;
         }
+
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token)}`;
+        socket = new WebSocket(wsUrl);
+
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "qr") {
+              setQrCode(data.qr);
+            } else if (data.type === "connected") {
+              setQrCode(null);
+              queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
+              toast({
+                title: "Conectado!",
+                description: "WhatsApp conectado com sucesso",
+              });
+            } else if (data.type === "disconnected") {
+              setQrCode(null);
+              queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connection"] });
+            }
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
+        };
+
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+
+        socket.onclose = () => {
+          console.log("WebSocket connection closed");
+        };
+
+        setWs(socket);
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+        console.error("Error connecting to WebSocket:", error);
       }
     };
 
-    setWs(socket);
+    connectWebSocket();
 
     return () => {
-      socket.close();
+      if (socket) {
+        socket.close();
+      }
     };
   }, [toast]);
 

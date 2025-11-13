@@ -15,15 +15,14 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table (IMPORTANT: mandatory for Replit Auth)
+// User storage table (IMPORTANT: mandatory for Supabase Auth)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
+  name: varchar("name").notNull(),
+  phone: varchar("phone").unique().notNull(),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 50 }).default("user").notNull(),
-  telefone: varchar("telefone"),
   whatsappNumber: varchar("whatsapp_number"),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -92,6 +91,18 @@ export const admins = pgTable("admins", {
   email: varchar("email").unique().notNull(),
   passwordHash: text("password_hash").notNull(),
   role: varchar("role", { length: 50 }).default("admin").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Admin WhatsApp connection table
+export const adminWhatsappConnection = pgTable("admin_whatsapp_connection", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").notNull().unique().references(() => admins.id, { onDelete: 'cascade' }),
+  phoneNumber: varchar("phone_number"),
+  isConnected: boolean("is_connected").default(false).notNull(),
+  qrCode: text("qr_code"),
+  sessionData: jsonb("session_data"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -204,6 +215,13 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   }),
 }));
 
+export const adminWhatsappConnectionRelations = relations(adminWhatsappConnection, ({ one }) => ({
+  admin: one(admins, {
+    fields: [adminWhatsappConnection.adminId],
+    references: [admins.id],
+  }),
+}));
+
 // Zod schemas and types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
@@ -302,3 +320,12 @@ export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
 });
 export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
 export type SystemConfig = typeof systemConfig.$inferSelect;
+
+// Admin WhatsApp connection schemas and types
+export const insertAdminWhatsappConnectionSchema = createInsertSchema(adminWhatsappConnection).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAdminWhatsappConnection = z.infer<typeof insertAdminWhatsappConnectionSchema>;
+export type AdminWhatsappConnection = typeof adminWhatsappConnection.$inferSelect;

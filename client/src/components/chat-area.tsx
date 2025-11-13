@@ -5,12 +5,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Send, MessageCircle, Bot, BotOff } from "lucide-react";
+import { Send, MessageCircle, Bot, BotOff, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { Message, Conversation } from "@shared/schema";
+import type { Message, Conversation, AiAgentConfig } from "@shared/schema";
 
 interface ChatAreaProps {
   conversationId: string | null;
@@ -31,6 +31,10 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
     queryKey: ["/api/messages", conversationId],
     enabled: !!conversationId,
     refetchInterval: 2000, // Poll every 2 seconds
+  });
+
+  const { data: agentConfig } = useQuery<AiAgentConfig | null>({
+    queryKey: ["/api/agent/config"],
   });
 
   const { data: agentStatus } = useQuery<{ isDisabled: boolean }>({
@@ -99,6 +103,93 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Minimalist onboarding: Agent CTA should have priority on the right side
+  if (!conversationId && (!agentConfig || !(agentConfig as any).isActive)) {
+    return (
+      <div className="flex items-center justify-center h-full bg-muted/20">
+        <div className="text-center space-y-4 max-w-sm p-8">
+          <Bot className="w-16 h-16 mx-auto text-muted-foreground" />
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg">Configure seu Agente IA</h3>
+            <p className="text-sm text-muted-foreground">Defina seu agente para automatizar respostas.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const el = document.querySelector('[data-testid=\"button-nav-agent\"]') as HTMLButtonElement;
+                el?.click();
+              }}
+              data-testid="button-minimal-configure-agent"
+            >
+              <Bot className="w-4 h-4 mr-2" />
+              Configurar Agente
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Minimalist onboarding: WhatsApp connection CTA when nothing selected
+  if (!conversationId && !connectionId) {
+    return (
+      <div className="flex items-center justify-center h-full bg-muted/20">
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <Smartphone className="w-12 h-12 text-muted-foreground mb-4" />
+          <h3 className="font-medium text-sm mb-2">WhatsApp n„o conectado</h3>
+          <p className="text-xs text-muted-foreground max-w-xs mb-3">
+            Conecte seu WhatsApp para visualizar e responder mensagens.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const el = document.querySelector('[data-testid="button-nav-connection"]') as HTMLButtonElement;
+              el?.click();
+            }}
+            data-testid="button-minimal-connect-whatsapp"
+          >
+            Conectar WhatsApp
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Minimal onboarding when agent is not configured
+  if (!conversationId && (!agentStatus || agentStatus === undefined)) {
+    // Fallback: show standard message; agent status is per conversation, so we also check global config below
+  }
+
+  // If no conversation selected and agent not configured globally, show minimal CTA
+  // Note: relies on `/api/agent/config` query above
+  // @ts-ignore - `agentConfig` is added when available
+  if (!conversationId && (typeof agentConfig === 'undefined' || !(agentConfig && (agentConfig as any).isActive))) {
+    return (
+      <div className="flex items-center justify-center h-full bg-muted/20">
+        <div className="text-center space-y-4 max-w-sm p-8">
+          <Bot className="w-16 h-16 mx-auto text-muted-foreground" />
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg">Configure seu Agente IA</h3>
+            <p className="text-sm text-muted-foreground">Defina seu agente para automatizar respostas.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const el = document.querySelector('[data-testid="button-nav-agent"]') as HTMLButtonElement;
+                el?.click();
+              }}
+              data-testid="button-minimal-configure-agent"
+            >
+              <Bot className="w-4 h-4 mr-2" />
+              Configurar Agente
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!conversationId) {
     return (
       <div className="flex items-center justify-center h-full bg-muted/20">
@@ -107,7 +198,7 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
           <div className="space-y-2">
             <h3 className="font-semibold text-lg">Selecione uma conversa</h3>
             <p className="text-sm text-muted-foreground">
-              Escolha uma conversa da lista para come√ßar a visualizar e responder mensagens
+              Escolha uma conversa da lista para comeÁar a visualizar e responder mensagens
             </p>
           </div>
         </div>
@@ -121,7 +212,7 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
         <div className="text-center space-y-4 max-w-sm p-8">
           <MessageCircle className="w-16 h-16 mx-auto text-muted-foreground" />
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">WhatsApp n√£o conectado</h3>
+            <h3 className="font-semibold text-lg">WhatsApp n„o conectado</h3>
             <p className="text-sm text-muted-foreground">
               Conecte seu WhatsApp primeiro para visualizar as conversas
             </p>
@@ -248,3 +339,4 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
     </div>
   );
 }
+

@@ -17,21 +17,17 @@ export default function SettingsPage() {
   });
 
   const [email, setEmail] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [name, setName] = useState("");
 
   useEffect(() => {
     if (user) {
       setEmail(user.email || "");
-      setTelefone(user.telefone || "");
-      setFirstName(user.firstName || "");
-      setLastName(user.lastName || "");
+      setName(user.name || "");
     }
   }, [user]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { email?: string; telefone?: string; firstName?: string; lastName?: string }) => {
+    mutationFn: async (data: { email?: string; name?: string }) => {
       const response = await apiRequest("PUT", "/api/user/profile", data);
       return await response.json();
     },
@@ -50,7 +46,7 @@ export default function SettingsPage() {
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate({ email, telefone, firstName, lastName });
+    updateProfileMutation.mutate({ email, name });
   };
 
   if (isLoading) {
@@ -91,41 +87,14 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="firstName">Nome</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="João"
-                    data-testid="input-first-name"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="lastName">Sobrenome</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Silva"
-                    data-testid="input-last-name"
-                  />
-                </div>
-              </div>
-
               <div className="grid gap-2">
-                <Label htmlFor="telefone" className="flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  Telefone
-                </Label>
+                <Label htmlFor="name">Nome Completo</Label>
                 <Input
-                  id="telefone"
-                  type="tel"
-                  value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
-                  placeholder="(11) 99999-9999"
-                  data-testid="input-phone"
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="João Silva"
+                  data-testid="input-name"
                 />
               </div>
 

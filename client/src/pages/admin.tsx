@@ -16,7 +16,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -26,13 +26,33 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
-import { Loader2, Plus, Trash2, Check, DollarSign, Users, CreditCard } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { Loader2, Plus, Trash2, Check, DollarSign, Users, CreditCard, MessageCircle } from "lucide-react";
 import type { Plan, Subscription, Payment, User } from "@shared/schema";
+import AdminWhatsappPanel from "@/components/admin-whatsapp-panel";
+import WelcomeMessageConfig from "@/components/welcome-message-config";
 
 export default function AdminPanel() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [, setLocation] = useLocation();
+
+  // Guard: exige sessão de admin
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/session", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && !data?.authenticated) {
+          setLocation("/admin-login");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLocation("/admin-login");
+      });
+    return () => { cancelled = true; };
+  }, [setLocation]);
 
   const { data: stats } = useQuery<{ totalUsers: number; totalRevenue: number; activeSubscriptions: number }>({
     queryKey: ["/api/admin/stats"],
@@ -73,6 +93,10 @@ export default function AdminPanel() {
             <TabsTrigger value="manage" data-testid="tab-manage">Gerenciar Clientes</TabsTrigger>
             <TabsTrigger value="plans" data-testid="tab-plans">Planos</TabsTrigger>
             <TabsTrigger value="payments" data-testid="tab-payments">Pagamentos</TabsTrigger>
+            <TabsTrigger value="whatsapp" data-testid="tab-whatsapp">
+              <MessageCircle className="w-4 h-4 mr-2" />
+              WhatsApp
+            </TabsTrigger>
             <TabsTrigger value="config" data-testid="tab-config">Configurações</TabsTrigger>
           </TabsList>
 
@@ -136,7 +160,7 @@ export default function AdminPanel() {
                     {users?.map((user: User) => (
                       <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
                         <TableCell data-testid={`text-email-${user.id}`}>{user.email}</TableCell>
-                        <TableCell>{user.firstName} {user.lastName}</TableCell>
+                        <TableCell>{user.name}</TableCell>
                         <TableCell>
                           <Badge variant={user.role === "owner" ? "default" : "secondary"}>
                             {user.role}
@@ -161,6 +185,13 @@ export default function AdminPanel() {
 
           <TabsContent value="payments" className="space-y-4">
             <PaymentsManager pendingPayments={pendingPayments} />
+          </TabsContent>
+
+          <TabsContent value="whatsapp" className="space-y-4">
+            <div className="grid gap-4">
+              <AdminWhatsappPanel />
+              <WelcomeMessageConfig />
+            </div>
           </TabsContent>
 
           <TabsContent value="config" className="space-y-4">
@@ -258,7 +289,7 @@ function PlansManager({ plans }: { plans: Plan[] | undefined }) {
                 <TableCell data-testid={`text-plan-name-${plan.id}`}>{plan.nome}</TableCell>
                 <TableCell>R$ {plan.valor}</TableCell>
                 <TableCell>{plan.periodicidade}</TableCell>
-                <TableCell>{plan.limiteConversas}</TableCell>
+                <TableCell>{plan.limiteConversas === -1 ? "Ilimitado" : plan.limiteConversas}</TableCell>
                 <TableCell>
                   <Badge variant={plan.ativo ? "default" : "secondary"}>
                     {plan.ativo ? "Ativo" : "Inativo"}
@@ -649,7 +680,7 @@ function ClientManager({
               <SelectContent>
                 {users?.filter(u => u.role !== "owner" && u.role !== "admin").map((user) => (
                   <SelectItem key={user.id} value={user.id}>
-                    {user.email} - {user.firstName} {user.lastName}
+                    {user.email} - {user.name}
                   </SelectItem>
                 ))}
               </SelectContent>

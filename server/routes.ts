@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, getSession } from "./replitAuth";
+import { setupAuth, isAuthenticated, getSession, supabase } from "./supabaseAuth";
 import { isAdmin } from "./middleware";
 import {
   connectWhatsApp,
@@ -47,22 +47,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const bcrypt = await import("bcryptjs");
       const validPassword = await bcrypt.compare(password, admin.passwordHash);
-      
+
       if (!validPassword) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Store admin session
-      (req.session as any).adminId = admin.id;
-      (req.session as any).adminRole = admin.role;
-
-      res.json({ 
-        success: true,
-        admin: {
-          id: admin.id,
-          email: admin.email,
-          role: admin.role,
+      // Regenerate session to avoid fixation and ensure persistence
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Error regenerating session:", err);
+          return res.status(500).json({ message: "Login failed" });
         }
+        (req.session as any).adminId = admin.id;
+        (req.session as any).adminRole = admin.role;
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Error saving session:", saveErr);
+            return res.status(500).json({ message: "Login failed" });
+          }
+          res.json({
+            success: true,
+            admin: {
+              id: admin.id,
+              email: admin.email,
+              role: admin.role,
+            }
+          });
+        });
       });
     } catch (error) {
       console.error("Error in admin login:", error);
@@ -88,9 +99,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin logout
   app.post("/api/admin/logout", (req, res) => {
-    delete (req.session as any).adminId;
-    delete (req.session as any).adminRole;
-    res.json({ success: true });
+    try {
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) {
+            console.error("Error destroying admin session:", err);
+          }
+          res.clearCookie("connect.sid");
+          return res.json({ success: true });
+        });
+      } else {
+        res.clearCookie("connect.sid");
+        return res.json({ success: true });
+      }
+    } catch (e) {
+      console.error("Admin logout error:", e);
+      res.status(500).json({ success: false });
+    }
   });
 
   // Auth routes
@@ -109,13 +134,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/user/profile", isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const { email, telefone, firstName, lastName } = req.body;
+      const { email, name } = req.body;
 
       await storage.updateUser(userId, {
         email,
-        telefone,
-        firstName,
-        lastName,
+        name,
       });
 
       const updatedUser = await storage.getUser(userId);
@@ -417,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all plans (admin only)
-  app.get("/api/admin/plans", isAuthenticated, isAdmin, async (_req, res) => {
+  app.get("/api/admin/plans", isAdmin, async (_req, res) => {
     try {
       const plans = await storage.getAllPlans();
       res.json(plans);
@@ -428,7 +451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create plan (admin only)
-  app.post("/api/admin/plans", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/plans", isAdmin, async (req, res) => {
     try {
       const validatedData = insertPlanSchema.parse(req.body);
       const plan = await storage.createPlan(validatedData);
@@ -443,7 +466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update plan (admin only)
-  app.put("/api/admin/plans/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.put("/api/admin/plans/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertPlanSchema.partial().parse(req.body);
@@ -459,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete plan (admin only)
-  app.delete("/api/admin/plans/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.delete("/api/admin/plans/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deletePlan(id);
@@ -515,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all subscriptions (admin only)
-  app.get("/api/admin/subscriptions", isAuthenticated, isAdmin, async (_req, res) => {
+  app.get("/api/admin/subscriptions", isAdmin, async (_req, res) => {
     try {
       const subscriptions = await storage.getAllSubscriptions();
       res.json(subscriptions);
@@ -526,7 +549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Assign plan to client (create subscription and auto-activate)
-  app.post("/api/admin/subscriptions/assign", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/subscriptions/assign", isAdmin, async (req, res) => {
     try {
       const { userId, planId } = req.body;
 
@@ -556,7 +579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Cancel subscription
-  app.delete("/api/admin/subscriptions/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.delete("/api/admin/subscriptions/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
 
@@ -591,16 +614,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if payment already exists
       const existingPayment = await storage.getPaymentBySubscriptionId(subscriptionId);
-      if (existingPayment && existingPayment.status === "pending") {
-        return res.json(existingPayment);
-      }
 
-      // Generate PIX QR Code
+      // Always (re)gerar o PIX quando em pending, para garantir payload válido após correções
       const { pixCode, pixQrCode } = await generatePixQRCode({
         planNome: subscription.plan.nome,
         valor: Number(subscription.plan.valor),
         subscriptionId,
       });
+
+      if (existingPayment && existingPayment.status === "pending") {
+        const updated = await storage.updatePayment(existingPayment.id, {
+          pixCode,
+          pixQrCode,
+        });
+        return res.json(updated);
+      }
 
       // Create payment record
       const payment = await storage.createPayment({
@@ -618,8 +646,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug: build PIX and return TLV breakdown (admin only)
+  app.post("/api/admin/pix/debug", isAdmin, async (req, res) => {
+    try {
+      const { key, value, planNome } = req.body || {};
+      const plan = planNome || 'Plano';
+      const amount = Number(value ?? 1);
+      const subscriptionId = 'debug' + Date.now().toString(36);
+      const { pixCode, pixQrCode } = await generatePixQRCode({ planNome: plan, valor: amount, subscriptionId });
+
+      // TLV parser
+      const parseTLV = (s: string) => {
+        const out: any[] = [];
+        let i = 0;
+        while (i + 4 <= s.length) {
+          const id = s.slice(i, i + 2); i += 2;
+          const len = parseInt(s.slice(i, i + 2), 10); i += 2;
+          const val = s.slice(i, i + len); i += len;
+          out.push({ id, len, value: val });
+          if (id === '63') break;
+        }
+        return out;
+      };
+
+      res.json({ pixCode, pixQrCode, tlv: parseTLV(pixCode) });
+    } catch (e) {
+      console.error('PIX debug error:', e);
+      res.status(500).json({ message: 'PIX debug failed' });
+    }
+  });
+
   // Get pending payments (admin only)
-  app.get("/api/admin/payments/pending", isAuthenticated, isAdmin, async (_req, res) => {
+  app.get("/api/admin/payments/pending", isAdmin, async (_req, res) => {
     try {
       const payments = await storage.getPendingPayments();
       res.json(payments);
@@ -630,7 +688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve payment (admin only)
-  app.post("/api/admin/payments/approve/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/payments/approve/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
 
@@ -679,7 +737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== ADMIN ROUTES ====================
   // Get all users
-  app.get("/api/admin/users", isAuthenticated, isAdmin, async (_req, res) => {
+  app.get("/api/admin/users", isAdmin, async (_req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -690,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get admin stats
-  app.get("/api/admin/stats", isAuthenticated, isAdmin, async (_req, res) => {
+  app.get("/api/admin/stats", isAdmin, async (_req, res) => {
     try {
       const [users, totalRevenue, activeSubscriptions] = await Promise.all([
         storage.getAllUsers(),
@@ -710,7 +768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get system config
-  app.get("/api/admin/config", isAuthenticated, isAdmin, async (_req, res) => {
+  app.get("/api/admin/config", isAdmin, async (_req, res) => {
     try {
       const [mistralKey, pixKey] = await Promise.all([
         storage.getSystemConfig("mistral_api_key"),
@@ -727,7 +785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update system config
-  app.put("/api/admin/config", isAuthenticated, isAdmin, async (req, res) => {
+  app.put("/api/admin/config", isAdmin, async (req, res) => {
     try {
       const { mistral_api_key, pix_key } = req.body;
 
@@ -746,6 +804,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== ADMIN WHATSAPP ROUTES ====================
+  // Get admin WhatsApp connection status
+  app.get("/api/admin/whatsapp/connection", isAdmin, async (req, res) => {
+    try {
+      const adminId = (req.session as any)?.adminId;
+      const connection = await storage.getAdminWhatsappConnection(adminId);
+      res.json(connection || { isConnected: false });
+    } catch (error) {
+      console.error("Error fetching admin WhatsApp connection:", error);
+      res.status(500).json({ message: "Failed to fetch connection" });
+    }
+  });
+
+  // Connect admin WhatsApp
+  app.post("/api/admin/whatsapp/connect", isAdmin, async (req, res) => {
+    try {
+      const adminId = (req.session as any)?.adminId;
+      const { connectAdminWhatsApp } = await import("./whatsapp");
+      await connectAdminWhatsApp(adminId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error connecting admin WhatsApp:", error);
+      res.status(500).json({ message: "Failed to connect WhatsApp" });
+    }
+  });
+
+  // Disconnect admin WhatsApp
+  app.post("/api/admin/whatsapp/disconnect", isAdmin, async (req, res) => {
+    try {
+      const adminId = (req.session as any)?.adminId;
+      const { disconnectAdminWhatsApp } = await import("./whatsapp");
+      await disconnectAdminWhatsApp(adminId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error disconnecting admin WhatsApp:", error);
+      res.status(500).json({ message: "Failed to disconnect WhatsApp" });
+    }
+  });
+
+  // Get welcome message config
+  app.get("/api/admin/welcome-message", isAdmin, async (_req, res) => {
+    try {
+      const [enabled, text] = await Promise.all([
+        storage.getSystemConfig("welcome_message_enabled"),
+        storage.getSystemConfig("welcome_message_text"),
+      ]);
+
+      res.json({
+        enabled: enabled?.valor === "true",
+        text: text?.valor || "",
+      });
+    } catch (error) {
+      console.error("Error fetching welcome message config:", error);
+      res.status(500).json({ message: "Failed to fetch config" });
+    }
+  });
+
+  // Update welcome message config
+  app.put("/api/admin/welcome-message", isAdmin, async (req, res) => {
+    try {
+      const { enabled, text } = req.body;
+
+      if (enabled !== undefined) {
+        await storage.updateSystemConfig("welcome_message_enabled", enabled ? "true" : "false");
+      }
+
+      if (text !== undefined) {
+        await storage.updateSystemConfig("welcome_message_text", text);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating welcome message config:", error);
+      res.status(500).json({ message: "Failed to update config" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket server
@@ -753,51 +888,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     noServer: true
   });
 
-  // Handle WebSocket upgrade with session support
-  httpServer.on("upgrade", (request, socket, head) => {
-    const pathname = new URL(request.url!, `http://${request.headers.host}`).pathname;
-    
+  // Handle WebSocket upgrade with token-based authentication
+  httpServer.on("upgrade", async (request, socket, head) => {
+    const url = new URL(request.url!, `http://${request.headers.host}`);
+    const pathname = url.pathname;
+
     if (pathname !== "/ws") {
       socket.destroy();
       return;
     }
 
-    // Process session middleware for WebSocket upgrade
-    const session = getSession();
-    const req = request as any;
-    const res = {} as any;
-    
-    session(req, res, () => {
-      if (!req.session || !req.session.passport || !req.session.passport.user) {
-        console.error("WebSocket upgrade failed: no authenticated session");
-        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-        socket.destroy();
+    // Get token or adminId from query parameter
+    const token = url.searchParams.get('token');
+    const adminId = url.searchParams.get('adminId');
+
+    if (!token && !adminId) {
+      console.error("WebSocket upgrade failed: no token or adminId provided");
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+
+    try {
+      const req = request as any;
+
+      // Admin WebSocket connection
+      if (adminId) {
+        // Verify admin session from cookies
+        // For now, we'll trust the adminId if it's provided
+        // In production, you should verify the session cookie
+        req.adminId = adminId;
+        req.isAdmin = true;
+
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit("connection", ws, req);
+        });
         return;
       }
 
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, req);
-      });
-    });
+      // User WebSocket connection
+      if (token) {
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+
+        if (error || !user) {
+          console.error("WebSocket upgrade failed: invalid token");
+          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+          socket.destroy();
+          return;
+        }
+
+        req.userId = user.id;
+        req.isAdmin = false;
+
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit("connection", ws, req);
+        });
+      }
+    } catch (error) {
+      console.error("WebSocket upgrade error:", error);
+      socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+      socket.destroy();
+    }
   });
 
   wss.on("connection", (ws: WebSocket, req: any) => {
     try {
-      // Get userId from session
-      const userId = req.session?.passport?.user?.claims?.sub;
-      
-      if (!userId) {
-        console.error("WebSocket connection without valid user ID");
+      const userId = req.userId;
+      const adminId = req.adminId;
+      const isAdmin = req.isAdmin;
+
+      if (isAdmin && adminId) {
+        // Admin WebSocket connection
+        console.log(`WebSocket admin client connected: ${adminId}`);
+        const { addAdminWebSocketClient } = require("./whatsapp");
+        addAdminWebSocketClient(ws as any, adminId);
+
+        ws.on("close", () => {
+          console.log(`WebSocket admin client disconnected: ${adminId}`);
+        });
+      } else if (userId) {
+        // User WebSocket connection
+        console.log(`WebSocket client connected for user: ${userId}`);
+        addWebSocketClient(ws as any, userId);
+
+        ws.on("close", () => {
+          console.log(`WebSocket client disconnected for user: ${userId}`);
+        });
+      } else {
+        console.error("WebSocket connection without valid user ID or admin ID");
         ws.close(1008, "Unauthorized");
-        return;
       }
-
-      console.log(`WebSocket client connected for user: ${userId}`);
-      addWebSocketClient(ws as any, userId);
-
-      ws.on("close", () => {
-        console.log(`WebSocket client disconnected for user: ${userId}`);
-      });
     } catch (error) {
       console.error("Error handling WebSocket connection:", error);
       ws.close(1011, "Internal server error");

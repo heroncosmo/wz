@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, MessageCircle } from "lucide-react";
+import { Search, MessageCircle, Smartphone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Conversation } from "@shared/schema";
@@ -52,7 +53,24 @@ export function ConversationsList({
       </div>
 
       <div className="flex-1 overflow-auto">
-        {isLoading ? (
+        {!connectionId ? (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+            <Smartphone className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="font-medium text-sm mb-2">WhatsApp não conectado</h3>
+            <p className="text-xs text-muted-foreground max-w-xs mb-3">Conecte seu WhatsApp para começar a receber conversas.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const el = document.querySelector('[data-testid="button-nav-connection"]') as HTMLButtonElement;
+                el?.click();
+              }}
+              data-testid="button-minimal-connect-whatsapp-list"
+            >
+              Conectar WhatsApp
+            </Button>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center h-32">
             <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>

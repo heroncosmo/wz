@@ -199,6 +199,20 @@ export default function SubscribePage() {
                   Valor: <span className="font-bold">R$ {payment.valor}</span>
                 </p>
               </div>
+
+              <div className="flex justify-center">
+                <a
+                  href={`https://wa.me/5517981679818?text=${encodeURIComponent(
+                    `Olá! Enviei o comprovante do pagamento da assinatura ${subscription.plan.nome} (ID ${subscription.id}) no valor de R$ ${payment.valor}.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="default" data-testid="button-whatsapp-proof">
+                    Enviar Comprovante via WhatsApp
+                  </Button>
+                </a>
+              </div>
             </CardContent>
           </Card>
         )}
