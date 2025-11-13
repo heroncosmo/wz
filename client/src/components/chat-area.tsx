@@ -53,8 +53,8 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
       toast({
         title: agentStatus?.isDisabled ? "Agente Ativado" : "Agente Desativado",
         description: agentStatus?.isDisabled 
-          ? "O agente voltarÃ¡ a responder automaticamente" 
-          : "O agente nÃ£o responderÃ¡ mais nesta conversa",
+          ? "O agente voltara a responder automaticamente" 
+          : "O agente nao respondera mais nesta conversa",
       });
     },
     onError: (error: Error) => {
@@ -136,7 +136,7 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
       <div className="flex items-center justify-center h-full bg-muted/20">
         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
           <Smartphone className="w-12 h-12 text-muted-foreground mb-4" />
-          <h3 className="font-medium text-sm mb-2">WhatsApp não conectado</h3>
+          <h3 className="font-medium text-sm mb-2">WhatsApp nao conectado</h3>
           <p className="text-xs text-muted-foreground max-w-xs mb-3">
             Conecte seu WhatsApp para visualizar e responder mensagens.
           </p>
@@ -198,7 +198,7 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
           <div className="space-y-2">
             <h3 className="font-semibold text-lg">Selecione uma conversa</h3>
             <p className="text-sm text-muted-foreground">
-              Escolha uma conversa da lista para começar a visualizar e responder mensagens
+              Escolha uma conversa da lista para comecar a visualizar e responder mensagens
             </p>
           </div>
         </div>
@@ -212,7 +212,7 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
         <div className="text-center space-y-4 max-w-sm p-8">
           <MessageCircle className="w-16 h-16 mx-auto text-muted-foreground" />
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">WhatsApp não conectado</h3>
+            <h3 className="font-semibold text-lg">WhatsApp nao conectado</h3>
             <p className="text-sm text-muted-foreground">
               Conecte seu WhatsApp primeiro para visualizar as conversas
             </p>
