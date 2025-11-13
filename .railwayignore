@@ -1,0 +1,23 @@
+# Ignore local deps and VCS
+node_modules
+.git
+.gitignore
+.vscode
+.idea
+
+# Build and caches
+dist
+.cache
+*.log
+server.log
+tmp*
+
+# Large folders not needed for deploy
+mcp-playwright-server/
+sequentialthinking-mcp-server/
+pix-por-piggly/
+
+# WhatsApp local session folders (Baileys). Use a Railway Volume and
+# set SESSIONS_DIR to persist these in production instead of baking into image.
+auth_*/
+auth_admin_*/

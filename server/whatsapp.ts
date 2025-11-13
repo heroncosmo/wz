@@ -7,6 +7,7 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
+import path from "path";
 import { storage } from "./storage";
 import WebSocket from "ws";
 import { generateAIResponse } from "./aiAgent";
@@ -33,6 +34,12 @@ const sessions = new Map<string, WhatsAppSession>();
 const adminSessions = new Map<string, AdminWhatsAppSession>();
 const wsClients = new Map<string, Set<AuthenticatedWebSocket>>();
 const adminWsClients = new Map<string, Set<AuthenticatedWebSocket>>();
+
+// Base directory for storing Baileys multi-file auth state.
+// Defaults to current working directory (backwards compatible with ./auth_*)
+// You can set SESSIONS_DIR (e.g., "/data/whatsapp-sessions" on Railway volumes)
+// to persist sessions between deploys and avoid baking them into the image.
+const SESSIONS_BASE = process.env.SESSIONS_DIR || "./";
 
 export function addWebSocketClient(ws: AuthenticatedWebSocket, userId: string) {
   if (!wsClients.has(userId)) {
@@ -103,7 +110,8 @@ export async function connectWhatsApp(userId: string): Promise<void> {
       });
     }
 
-    const { state, saveCreds } = await useMultiFileAuthState(`./auth_${userId}`);
+    const userAuthPath = path.join(SESSIONS_BASE, `auth_${userId}`);
+    const { state, saveCreds } = await useMultiFileAuthState(userAuthPath);
 
     const sock = makeWASocket({
       auth: state,
@@ -351,7 +359,8 @@ export async function connectAdminWhatsApp(adminId: string): Promise<void> {
       });
     }
 
-    const { state, saveCreds } = await useMultiFileAuthState(`./auth_admin_${adminId}`);
+    const adminAuthPath = path.join(SESSIONS_BASE, `auth_admin_${adminId}`);
+    const { state, saveCreds } = await useMultiFileAuthState(adminAuthPath);
 
     const socket = makeWASocket({
       auth: state,
