@@ -66,6 +66,14 @@ app.use((req, res, next) => {
   const findeasThemePath = path.join(process.cwd(), 'findeas theme');
   app.use('/assets', express.static(path.join(findeasThemePath, 'assets')));
 
+  // Lightweight health endpoints for uptime checks
+  app.get('/health', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok' });
+  });
+  app.get('/healthz', (_req: Request, res: Response) => {
+    res.status(200).send('ok');
+  });
+
   // Serve landing page HTML for unauthenticated root route
   app.get('/', (req: Request, res: Response, next) => {
     // Check if user is authenticated by looking for session cookie
