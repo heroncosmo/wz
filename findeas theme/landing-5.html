@@ -256,7 +256,7 @@
                     @keyframes typing{ 0%{opacity:0.2; transform:translateY(0)} 50%{opacity:1; transform:translateY(-3px)} 100%{opacity:0.2; transform:translateY(0)} }
                   </style>
 
-                  <div id="recursos-mockup-frame" class="wa-frame">
+                  <div id="recursos-mockup-frame" class="wa-frame" style="height: 470px;">
                     <div class="wa-inner">
                     <!-- Header -->
                     <div class="wa-header">
@@ -267,27 +267,8 @@
                       </div>
                     </div>
 
-                    <!-- Chat screen -->
-                    <div class="wa-screen">
-                      <!-- incoming lead -->
-                      <div style="align-self:flex-start;">
-                        <div class="bubble-in">Oi! Quero orçamento de limpeza amanhã às 10h.</div>
-                      </div>
-
-                      <!-- outgoing IA initial reply -->
-                      <div style="align-self:flex-end; text-align:right;">
-                        <div class="bubble-out">Claro — posso ajudar. Qual o endereço e o nome para o agendamento?</div>
-                      </div>
-
-                      <!-- outgoing IA availability and animated steps (script will append human-like messages) -->
-                      <div style="align-self:flex-end; text-align:right;">
-                        <div class="bubble-out" id="action-bubble">
-                          <div id="action-placeholder">Verificando...</div>
-                        </div>
-                      </div>
-
-                      <!-- conversation only: badges/chips removed to keep focus on chat -->
-                    </div>
+                    <!-- Chat screen (preenchido via script para simular atendimento humano da IA) -->
+                    <div class="wa-screen" id="wa-demo-screen"></div>
 
                     <!-- Footer with animated typing indicator (WhatsApp-like) -->
                     <div class="wa-footer">
@@ -296,14 +277,105 @@
                           <i class="ri-chat-1-line"></i>
                         </div>
                         <div style="font-size:13px; color:#6c757d; display:flex; align-items:center; gap:8px;">
-                          <div class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
-                          <div>Escrevendo</div>
+                          <div class="typing" id="wa-typing" style="display:none;"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                          <div id="wa-typing-label">A IA está se preparando para responder...</div>
                         </div>
                       </div>
                       <!-- no external CTA button to keep UI clean -->
                     </div>
                     </div> <!-- .wa-inner -->
                   </div>
+                  <script>
+                    (function(){
+                      var screen = document.getElementById('wa-demo-screen');
+                      var typing = document.getElementById('wa-typing');
+                      var typingLabel = document.getElementById('wa-typing-label');
+                      if (!screen || !typing || !typingLabel) return;
+
+                      function addBubble(text, type){
+                        var wrapper = document.createElement('div');
+                        wrapper.style.alignSelf = type === 'in' ? 'flex-start' : 'flex-end';
+                        if (type === 'out') wrapper.style.textAlign = 'right';
+
+                        var bubble = document.createElement('div');
+                        bubble.className = type === 'in' ? 'bubble-in' : 'bubble-out';
+                        bubble.textContent = text;
+
+                        wrapper.appendChild(bubble);
+                        screen.appendChild(wrapper);
+                        screen.scrollTop = screen.scrollHeight;
+                      }
+
+                      function showTyping(show, label){
+                        typing.style.display = show ? 'inline-block' : 'none';
+                        if (label) typingLabel.textContent = label;
+                      }
+
+                      var conversations = [
+                        [
+                          { from: 'in',  text: 'Oi! Vi seu site agora, voce atende empresas tambem?' },
+                          { from: 'out', text: 'Oi, tudo bem? Sou o Agente IA da sua empresa. Atendemos empresas e tambem clientes finais.' },
+                          { from: 'out', text: 'Me conta rapidinho: qual o tamanho da sua equipe e em qual cidade voce esta?' },
+                          { from: 'in',  text: 'Somos em 12 pessoas em Sao Paulo.' },
+                          { from: 'out', text: 'Perfeito. Ja organizei aqui um fluxo de atendimento para empresas desse porte. Posso te enviar um orçamento personalizado agora.' }
+                        ],
+                        [
+                          { from: 'in',  text: 'Boa tarde! Como funciona esse atendimento com IA?' },
+                          { from: 'out', text: 'Boa tarde! Eu sou um agente treinado com o seu conhecimento: processos, ofertas e jeito de falar da sua marca.' },
+                          { from: 'out', text: 'Respondo as duvidas frequentes sozinho e, quando preciso, chamo um humano ou deixo voce assumir a conversa em um clique.' },
+                          { from: 'in',  text: 'Entendi. E se o cliente fizer uma pergunta bem especifica?' },
+                          { from: 'out', text: 'Eu busco nos materiais que voce enviou (conversas antigas, PDFs, documentos) e respondo de forma clara e profissional.' }
+                        ],
+                        [
+                          { from: 'in',  text: 'Oi! Preciso de ajuda urgente com um cliente agora.' },
+                          { from: 'out', text: 'Estou aqui para isso. Me conta qual o contexto que eu ja te ajudo a responder do melhor jeito.' },
+                          { from: 'in',  text: 'Ele quer cancelar por demora no retorno.' },
+                          { from: 'out', text: 'Ja montei uma resposta empatica para reverter a situacao. Posso enviar direto para o cliente ou deixar como sugestao para voce editar.' },
+                          { from: 'out', text: 'Assim eu viro seu copiloto de atendimento, nao apenas um chatbot padrao.' }
+                        ]
+                      ];
+
+                      function playConversation(index){
+                        if (index >= conversations.length) index = 0;
+                        screen.innerHTML = '';
+                        showTyping(false, 'A IA esta se preparando para responder...');
+
+                        var msgs = conversations[index].slice();
+                        var baseDelay = 900; // tempo base entre mensagens
+
+                        function next(){
+                          if (!msgs.length){
+                            // pausa "humana" antes de reiniciar com outra conversa
+                            showTyping(false, 'Aguardando novos clientes...');
+                            setTimeout(function(){ playConversation(index + 1); }, 3500);
+                            return;
+                          }
+
+                          var msg = msgs.shift();
+                          var isOut = msg.from === 'out';
+                          var words = msg.text.split(' ').length;
+                          var thinkTime = Math.min(2600, baseDelay + words * 90);
+
+                          showTyping(isOut, isOut ? 'Agente IA digitando...' : 'Cliente digitando...');
+                          setTimeout(function(){
+                            addBubble(msg.text, msg.from);
+                            showTyping(false);
+                            setTimeout(next, 500 + Math.random() * 600);
+                          }, thinkTime);
+                        }
+
+                        // pequena espera inicial como se o visitante tivesse acabado de abrir o site
+                        setTimeout(next, 900);
+                      }
+
+                      // inicia simulacao quando a pagina estiver pronta
+                      if (document.readyState === 'complete' || document.readyState === 'interactive'){
+                        playConversation(0);
+                      } else {
+                        document.addEventListener('DOMContentLoaded', function(){ playConversation(0); });
+                      }
+                    })();
+                  </script>
                 </div>
               </div>
             </div>
