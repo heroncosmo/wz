@@ -823,7 +823,7 @@
           }
         }catch(e){ console && console.warn && console.warn(e); }
       }
-      window.addEventListener('load', function(){ adjustMockupHeight(); startMockupSequence(); });
+      window.addEventListener('load', function(){ adjustMockupHeight(); });
       window.addEventListener('resize', function(){ setTimeout(adjustMockupHeight,120); });
     })();
 
