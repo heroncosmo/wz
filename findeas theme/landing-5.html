@@ -291,6 +291,10 @@
                       var typing = document.getElementById('wa-typing');
                       var typingLabel = document.getElementById('wa-typing-label');
                       if (!screen || !typing || !typingLabel) return;
+                      // Garante que o texto visto pelo visitante pareca atendimento humano
+                      typingLabel.textContent = 'Equipe esta preparando a resposta...';
+                      var headerStatus = document.querySelector('#recursos-mockup-frame .wa-header small');
+                      if (headerStatus) headerStatus.textContent = 'online • Equipe atendendo agora';
 
                       function addBubble(text, type){
                         var wrapper = document.createElement('div');
@@ -311,25 +315,25 @@
                         if (label) typingLabel.textContent = label;
                       }
 
-                      // Cada conversa representa um tipo de negocio diferente atendido pela IA
+                      // Cada conversa representa um tipo de negocio diferente atendido pela equipe
                       var conversations = [
                         [
                           { from: 'in',  text: 'Oi, acabei de ver a empresa de limpeza. Voces tem equipe para escritorio pequeno?' },
-                          { from: 'out', text: 'Ola, tudo bem? Eu sou a assistente virtual da empresa de limpeza e te ajudo com orcamento sem burocracia.' },
+                          { from: 'out', text: 'Ola, tudo bem? Aqui e da equipe da empresa de limpeza, vou te ajudar com o orcamento sem burocracia.' },
                           { from: 'out', text: 'Me conta rapidinho quantas salas e quantos banheiros voces tem, assim calculo um pacote ideal.' },
                           { from: 'in',  text: 'Sao 5 salas e 2 banheiros.' },
                           { from: 'out', text: 'Perfeito. Ja organizei aqui um fluxo de atendimento para empresas desse porte. Posso te enviar um orçamento personalizado agora.' }
                         ],
                         [
                           { from: 'in',  text: 'Boa tarde! Vi a clinica de estetica de voces e queria saber se tem avaliacao para limpeza de pele esta semana.' },
-                          { from: 'out', text: 'Boa tarde! Eu sou a assistente virtual da clinica e te ajudo a encontrar o melhor horario.' },
+                          { from: 'out', text: 'Boa tarde! Aqui e da recepcao da clinica, vou te ajudar a encontrar o melhor horario.' },
                           { from: 'out', text: 'Tenho vagas na quinta as 15:00 e na sexta as 10:30. Qual desses horarios fica melhor para voce?' },
                           { from: 'in',  text: 'Quinta as 15:00 seria otimo.' },
                           { from: 'out', text: 'Perfeito, anotei aqui. Sua avaliacao esta confirmada e em alguns minutos te envio as orientacoes de preparo pelo WhatsApp.' }
                         ],
                         [
                           { from: 'in',  text: 'Oi, queria fazer uma reserva para 4 pessoas hoje a noite. Voces tem mesa na varanda?' },
-                          { from: 'out', text: 'Ola, aqui e a assistente virtual do restaurante. Vou verificar agora as mesas disponiveis na varanda para o horario de hoje.' },
+                          { from: 'out', text: 'Ola, aqui e da equipe do restaurante. Vou verificar agora as mesas disponiveis na varanda para o horario de hoje.' },
                           { from: 'out', text: 'Tenho disponibilidade para as 19:30 e para as 20:15. Qual horario voce prefere?' },
                           { from: 'in',  text: 'Pode ser as 19:30.' },
                           { from: 'out', text: 'Reserva confirmada para 4 pessoas as 19:30 na varanda. Se quiser, ja posso te enviar o cardapio com os pratos mais pedidos.' }
@@ -343,7 +347,7 @@
                       function playConversation(index){
                         if (index >= conversations.length) index = 0;
                         screen.innerHTML = '';
-                        showTyping(false, 'A IA esta se preparando para responder...');
+                        showTyping(false, 'Equipe esta se preparando para responder...');
 
                         var msgs = conversations[index].slice();
                         var baseDelay = 900; // tempo base entre mensagens
@@ -361,7 +365,7 @@
                           var words = msg.text.split(' ').length;
                           var thinkTime = Math.min(2600, baseDelay + words * 90);
 
-                          showTyping(isOut, isOut ? 'Agente IA digitando...' : 'Cliente digitando...');
+                          showTyping(isOut, isOut ? 'Equipe digitando...' : 'Cliente digitando...');
                           setTimeout(function(){
                             addBubble(msg.text, msg.from);
                             showTyping(false);
