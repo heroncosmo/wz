@@ -311,29 +311,34 @@
                         if (label) typingLabel.textContent = label;
                       }
 
+                      // Cada conversa representa um tipo de negocio diferente atendido pela IA
                       var conversations = [
                         [
-                          { from: 'in',  text: 'Oi! Vi seu site agora, voce atende empresas tambem?' },
-                          { from: 'out', text: 'Oi, tudo bem? Sou o Agente IA da sua empresa. Atendemos empresas e tambem clientes finais.' },
-                          { from: 'out', text: 'Me conta rapidinho: qual o tamanho da sua equipe e em qual cidade voce esta?' },
-                          { from: 'in',  text: 'Somos em 12 pessoas em Sao Paulo.' },
+                          { from: 'in',  text: 'Oi, acabei de ver a empresa de limpeza. Voces tem equipe para escritorio pequeno?' },
+                          { from: 'out', text: 'Ola, tudo bem? Eu sou a assistente virtual da empresa de limpeza e te ajudo com orcamento sem burocracia.' },
+                          { from: 'out', text: 'Me conta rapidinho quantas salas e quantos banheiros voces tem, assim calculo um pacote ideal.' },
+                          { from: 'in',  text: 'Sao 5 salas e 2 banheiros.' },
                           { from: 'out', text: 'Perfeito. Ja organizei aqui um fluxo de atendimento para empresas desse porte. Posso te enviar um orçamento personalizado agora.' }
                         ],
                         [
-                          { from: 'in',  text: 'Boa tarde! Como funciona esse atendimento com IA?' },
-                          { from: 'out', text: 'Boa tarde! Eu sou um agente treinado com o seu conhecimento: processos, ofertas e jeito de falar da sua marca.' },
-                          { from: 'out', text: 'Respondo as duvidas frequentes sozinho e, quando preciso, chamo um humano ou deixo voce assumir a conversa em um clique.' },
-                          { from: 'in',  text: 'Entendi. E se o cliente fizer uma pergunta bem especifica?' },
-                          { from: 'out', text: 'Eu busco nos materiais que voce enviou (conversas antigas, PDFs, documentos) e respondo de forma clara e profissional.' }
+                          { from: 'in',  text: 'Boa tarde! Vi a clinica de estetica de voces e queria saber se tem avaliacao para limpeza de pele esta semana.' },
+                          { from: 'out', text: 'Boa tarde! Eu sou a assistente virtual da clinica e te ajudo a encontrar o melhor horario.' },
+                          { from: 'out', text: 'Tenho vagas na quinta as 15:00 e na sexta as 10:30. Qual desses horarios fica melhor para voce?' },
+                          { from: 'in',  text: 'Quinta as 15:00 seria otimo.' },
+                          { from: 'out', text: 'Perfeito, anotei aqui. Sua avaliacao esta confirmada e em alguns minutos te envio as orientacoes de preparo pelo WhatsApp.' }
                         ],
                         [
-                          { from: 'in',  text: 'Oi! Preciso de ajuda urgente com um cliente agora.' },
-                          { from: 'out', text: 'Estou aqui para isso. Me conta qual o contexto que eu ja te ajudo a responder do melhor jeito.' },
-                          { from: 'in',  text: 'Ele quer cancelar por demora no retorno.' },
-                          { from: 'out', text: 'Ja montei uma resposta empatica para reverter a situacao. Posso enviar direto para o cliente ou deixar como sugestao para voce editar.' },
-                          { from: 'out', text: 'Assim eu viro seu copiloto de atendimento, nao apenas um chatbot padrao.' }
+                          { from: 'in',  text: 'Oi, queria fazer uma reserva para 4 pessoas hoje a noite. Voces tem mesa na varanda?' },
+                          { from: 'out', text: 'Ola, aqui e a assistente virtual do restaurante. Vou verificar agora as mesas disponiveis na varanda para o horario de hoje.' },
+                          { from: 'out', text: 'Tenho disponibilidade para as 19:30 e para as 20:15. Qual horario voce prefere?' },
+                          { from: 'in',  text: 'Pode ser as 19:30.' },
+                          { from: 'out', text: 'Reserva confirmada para 4 pessoas as 19:30 na varanda. Se quiser, ja posso te enviar o cardapio com os pratos mais pedidos.' }
                         ]
                       ];
+                      // Ajusta a ultima mensagem do primeiro cenario para um texto mais profissional
+                      try {
+                        conversations[0][4].text = 'Perfeito, para esse tamanho ja montei um plano semanal e posso te enviar os valores detalhados agora.';
+                      } catch(e) {}
 
                       function playConversation(index){
                         if (index >= conversations.length) index = 0;
