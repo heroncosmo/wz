@@ -58,10 +58,8 @@ export default function AdminWhatsappPanel() {
         title: "Conectando WhatsApp",
         description: "Aguarde o QR Code aparecer...",
       });
+      setIsConnecting(true);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/whatsapp/connection"] });
-      
-      // Conectar WebSocket para receber QR Code
-      connectWebSocket();
     },
     onError: (error: Error) => {
       toast({
@@ -178,6 +176,14 @@ export default function AdminWhatsappPanel() {
 
     setWs(websocket);
   };
+
+  // Conectar WebSocket automaticamente quando tivermos a sess�o do admin
+  useEffect(() => {
+    if (!adminSession?.adminId) return;
+    if (ws) return; // j� conectado
+    connectWebSocket();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminSession?.adminId]);
 
   // Limpar WebSocket ao desmontar
   useEffect(() => {
@@ -306,4 +312,3 @@ export default function AdminWhatsappPanel() {
     </Card>
   );
 }
-
