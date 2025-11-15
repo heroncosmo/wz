@@ -101,9 +101,19 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
     }
   };
 
+  // Auto-scroll para última mensagem quando messages mudar
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-scroll quando abrir uma nova conversa
+  useEffect(() => {
+    if (conversationId) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }, 100);
+    }
+  }, [conversationId]);
 
   // Minimalist onboarding: Agent CTA should have priority on the right side
   if (!conversationId && (!agentConfig || !(agentConfig as any).isActive)) {

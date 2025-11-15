@@ -102,7 +102,7 @@ export function ConversationsList({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b space-y-4">
+      <div className="p-4 border-b space-y-4 flex-shrink-0">
         <h2 className="font-semibold text-lg">Conversas</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -116,7 +116,7 @@ export function ConversationsList({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {!connectionId ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
             <Smartphone className="w-12 h-12 text-muted-foreground mb-4" />

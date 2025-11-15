@@ -359,8 +359,8 @@ const toolsNavigation: ToolNavItem[] = [
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
-        <div className="flex-1 flex overflow-hidden pb-20 md:pb-0">
+      <SidebarInset className="h-screen overflow-hidden">
+        <div className="flex h-full overflow-hidden pb-20 md:pb-0">
           {isPlansRoute && (
             <div className="flex-1 overflow-auto">
               <PlansPage />
@@ -451,14 +451,14 @@ const toolsNavigation: ToolNavItem[] = [
           {/* Conversations */}
           {(isConversasRoute || (isDashboardMode && selectedView === "conversations")) && (
             <>
-              <div className="w-80 border-r bg-card flex flex-col">
+              <div className="w-80 border-r bg-card flex flex-col h-full overflow-hidden">
                 <ConversationsList
                   connectionId={connection?.id}
                   selectedConversationId={selectedConversationId}
                   onSelectConversation={setSelectedConversationId}
                 />
               </div>
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
                 {false && (
                   <div className="p-4 space-y-3">
                     {!agentConfig && (
