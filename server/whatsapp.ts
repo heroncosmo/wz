@@ -4,6 +4,7 @@ import makeWASocket, {
   WASocket,
   proto,
   WAMessage,
+  downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -230,9 +231,78 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
   if (!remoteJid) return;
 
   const contactNumber = remoteJid.split("@")[0];
-  const messageText = waMessage.message?.conversation || 
-                     waMessage.message?.extendedTextMessage?.text || 
-                     "[Media]";
+  
+  // Extract message data including media
+  let messageText = "";
+  let mediaType: string | null = null;
+  let mediaUrl: string | null = null;
+  let mediaMimeType: string | null = null;
+  let mediaDuration: number | null = null;
+  let mediaCaption: string | null = null;
+
+  const msg = waMessage.message;
+
+  // Check for text messages
+  if (msg?.conversation) {
+    messageText = msg.conversation;
+  } else if (msg?.extendedTextMessage?.text) {
+    messageText = msg.extendedTextMessage.text;
+  }
+  // Check for image
+  else if (msg?.imageMessage) {
+    mediaType = "image";
+    mediaMimeType = msg.imageMessage.mimetype || "image/jpeg";
+    mediaCaption = msg.imageMessage.caption || null;
+    messageText = mediaCaption || "📷 Imagem";
+    
+    try {
+      const buffer = await downloadMediaMessage(waMessage, "buffer", {});
+      mediaUrl = `data:${mediaMimeType};base64,${buffer.toString("base64")}`;
+    } catch (error) {
+      console.error("Error downloading image:", error);
+      mediaUrl = null;
+    }
+  }
+  // Check for audio
+  else if (msg?.audioMessage) {
+    mediaType = "audio";
+    mediaMimeType = msg.audioMessage.mimetype || "audio/ogg; codecs=opus";
+    mediaDuration = msg.audioMessage.seconds || null;
+    messageText = "🎵 Áudio";
+    
+    try {
+      const buffer = await downloadMediaMessage(waMessage, "buffer", {});
+      mediaUrl = `data:${mediaMimeType};base64,${buffer.toString("base64")}`;
+    } catch (error) {
+      console.error("Error downloading audio:", error);
+      mediaUrl = null;
+    }
+  }
+  // Check for video
+  else if (msg?.videoMessage) {
+    mediaType = "video";
+    mediaMimeType = msg.videoMessage.mimetype || "video/mp4";
+    mediaCaption = msg.videoMessage.caption || null;
+    mediaDuration = msg.videoMessage.seconds || null;
+    messageText = mediaCaption || "🎥 Vídeo";
+    
+    try {
+      const buffer = await downloadMediaMessage(waMessage, "buffer", {});
+      mediaUrl = `data:${mediaMimeType};base64,${buffer.toString("base64")}`;
+    } catch (error) {
+      console.error("Error downloading video:", error);
+      mediaUrl = null;
+    }
+  }
+  // Check for document
+  else if (msg?.documentMessage) {
+    mediaType = "document";
+    mediaMimeType = msg.documentMessage.mimetype || "application/octet-stream";
+    messageText = `📄 ${msg.documentMessage.fileName || "Documento"}`;
+  }
+  else {
+    messageText = "[Mensagem não suportada]";
+  }
 
   let conversation = await storage.getConversationByContactNumber(
     session.connectionId,
@@ -264,12 +334,18 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     text: messageText,
     timestamp: new Date(Number(waMessage.messageTimestamp) * 1000),
     isFromAgent: false,
+    mediaType,
+    mediaUrl,
+    mediaMimeType,
+    mediaDuration,
+    mediaCaption,
   });
 
   broadcastToUser(session.userId, {
     type: "new_message",
     conversationId: conversation.id,
     message: messageText,
+    mediaType,
   });
 
   // AI Agent Auto-Response

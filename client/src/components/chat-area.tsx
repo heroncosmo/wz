@@ -11,6 +11,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Message, Conversation, AiAgentConfig } from "@shared/schema";
+import { MessageImage } from "@/components/message-image";
+import { MessageAudio } from "@/components/message-audio";
 
 interface ChatAreaProps {
   conversationId: string | null;
@@ -300,7 +302,35 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
                     <span className="text-xs font-semibold text-primary">Agente IA</span>
                   </div>
                 )}
-                <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                
+                {/* Render media content */}
+                {message.mediaType === "image" && message.mediaUrl ? (
+                  <MessageImage 
+                    src={message.mediaUrl} 
+                    caption={message.mediaCaption}
+                    alt="Imagem do WhatsApp"
+                  />
+                ) : message.mediaType === "audio" && message.mediaUrl ? (
+                  <MessageAudio 
+                    src={message.mediaUrl}
+                    duration={message.mediaDuration}
+                    fromMe={message.fromMe}
+                  />
+                ) : message.mediaType === "video" && message.mediaUrl ? (
+                  <div className="space-y-2">
+                    <video 
+                      src={message.mediaUrl} 
+                      controls 
+                      className="max-w-[280px] max-h-[280px] rounded-lg"
+                    />
+                    {message.mediaCaption && (
+                      <p className="text-sm whitespace-pre-wrap break-words">{message.mediaCaption}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                )}
+                
                 <p
                   className={`text-xs mt-1 ${
                     message.fromMe ? "text-primary-foreground/70" : "text-muted-foreground"

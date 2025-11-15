@@ -64,6 +64,12 @@ export const messages = pgTable("messages", {
   timestamp: timestamp("timestamp").notNull(),
   status: varchar("status", { length: 50 }),
   isFromAgent: boolean("is_from_agent").default(false).notNull(),
+  // Media fields
+  mediaType: varchar("media_type", { length: 50 }), // 'image', 'audio', 'video', 'document'
+  mediaUrl: text("media_url"), // URL or base64 data
+  mediaMimeType: varchar("media_mime_type", { length: 100 }),
+  mediaDuration: integer("media_duration"), // Duration in seconds for audio/video
+  mediaCaption: text("media_caption"), // Caption for media
   createdAt: timestamp("created_at").defaultNow(),
 });
 
