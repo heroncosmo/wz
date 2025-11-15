@@ -24,6 +24,7 @@ export default function AdminWhatsappPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [ws, setWs] = useState<WebSocket | null>(null);
 
   // Buscar sessão do admin para obter o adminId real
@@ -92,6 +93,7 @@ export default function AdminWhatsappPanel() {
         description: "Sua conexão foi encerrada com sucesso.",
       });
       setQrCode(null);
+      setIsConnecting(false);
       if (ws) {
         ws.close();
         setWs(null);
@@ -139,8 +141,18 @@ export default function AdminWhatsappPanel() {
         if (data.type === "qr") {
           console.log("QR Code recebido!");
           setQrCode(data.qr);
+          setIsConnecting(false);
+        } else if (data.type === "connecting") {
+          console.log("WhatsApp conectando...");
+          setQrCode(null);
+          setIsConnecting(true);
+          toast({
+            title: "Conectando...",
+            description: "Aguarde enquanto estabelecemos a conexão",
+          });
         } else if (data.type === "connected") {
           setQrCode(null);
+          setIsConnecting(false);
           toast({
             title: "WhatsApp conectado!",
             description: `Número: ${data.phoneNumber}`,
@@ -148,6 +160,7 @@ export default function AdminWhatsappPanel() {
           queryClient.invalidateQueries({ queryKey: ["/api/admin/whatsapp/connection"] });
         } else if (data.type === "disconnected") {
           setQrCode(null);
+          setIsConnecting(false);
           queryClient.invalidateQueries({ queryKey: ["/api/admin/whatsapp/connection"] });
         }
       } catch (error) {
@@ -236,18 +249,35 @@ export default function AdminWhatsappPanel() {
           </div>
         ) : (
           <div className="space-y-4">
-            {qrCode ? (
+            {isConnecting ? (
+              <div className="flex flex-col items-center space-y-4 p-8">
+                <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                <div className="text-center space-y-2">
+                  <p className="text-lg font-semibold">Conectando...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Aguarde enquanto estabelecemos a conexão com o WhatsApp
+                  </p>
+                </div>
+              </div>
+            ) : qrCode ? (
               <div className="flex flex-col items-center space-y-4">
-                <div className="p-4 bg-white rounded-lg">
+                <div className="w-full p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-2 text-blue-900">Como conectar seu WhatsApp:</h4>
+                  <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Abra o <strong>WhatsApp</strong> no seu celular</li>
+                    <li>Toque em <strong>Menu</strong> (⋮) ou <strong>Configurações</strong></li>
+                    <li>Toque em <strong>Aparelhos conectados</strong></li>
+                    <li>Toque em <strong>Conectar um aparelho</strong></li>
+                    <li>Aponte a câmera do celular para este QR Code</li>
+                  </ol>
+                </div>
+                <div className="p-4 bg-white border-2 border-gray-200 rounded-lg shadow-sm">
                   <img src={qrCode} alt="QR Code" className="w-64 h-64" />
                 </div>
-                <div className="text-center space-y-2">
-                  <p className="text-sm font-medium flex items-center justify-center gap-2">
+                <div className="text-center">
+                  <p className="text-sm font-medium flex items-center justify-center gap-2 text-primary">
                     <QrCode className="w-4 h-4" />
-                    Escaneie o QR Code com seu WhatsApp
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Abra o WhatsApp no seu celular → Menu (⋮) → Aparelhos conectados → Conectar um aparelho
+                    Escaneie o QR Code acima
                   </p>
                 </div>
               </div>

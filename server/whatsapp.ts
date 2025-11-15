@@ -8,6 +8,7 @@ import makeWASocket, {
 import QRCode from "qrcode";
 import pino from "pino";
 import path from "path";
+import fs from "fs/promises";
 import { storage } from "./storage";
 import WebSocket from "ws";
 import { generateAIResponse } from "./aiAgent";
@@ -99,8 +100,28 @@ function broadcastToAdmin(adminId: string, data: any) {
   });
 }
 
+// Função para limpar arquivos de autenticação
+async function clearAuthFiles(authPath: string): Promise<void> {
+  try {
+    const exists = await fs.access(authPath).then(() => true).catch(() => false);
+    if (exists) {
+      await fs.rm(authPath, { recursive: true, force: true });
+      console.log(`Cleared auth files at: ${authPath}`);
+    }
+  } catch (error) {
+    console.error(`Error clearing auth files at ${authPath}:`, error);
+  }
+}
+
 export async function connectWhatsApp(userId: string): Promise<void> {
   try {
+    // Verificar se já existe uma sessão ativa
+    const existingSession = sessions.get(userId);
+    if (existingSession?.socket) {
+      console.log(`User ${userId} already has an active session, using existing one`);
+      return;
+    }
+
     let connection = await storage.getConnectionByUserId(userId);
     
     if (!connection) {
@@ -142,20 +163,36 @@ export async function connectWhatsApp(userId: string): Promise<void> {
         }
       }
 
+      // Estado "connecting" - quando o QR Code foi escaneado e está conectando
+      if (conn === "connecting") {
+        console.log(`User ${userId} is connecting...`);
+        broadcastToUser(userId, { type: "connecting" });
+      }
+
       if (conn === "close") {
         const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
-        
+
+        // Sempre deletar a sessão primeiro
+        sessions.delete(userId);
+
+        // Atualizar banco de dados
         await storage.updateConnection(session.connectionId, {
           isConnected: false,
           qrCode: null,
         });
 
-        broadcastToUser(userId, { type: "disconnected" });
-        sessions.delete(userId);
-
         if (shouldReconnect) {
-          console.log("Reconnecting...");
+          console.log(`User ${userId} WhatsApp disconnected temporarily, reconnecting...`);
+          broadcastToUser(userId, { type: "disconnected" });
           setTimeout(() => connectWhatsApp(userId), 3000);
+        } else {
+          // Foi logout (desconectado pelo celular), limpar TUDO
+          console.log(`User ${userId} logged out from device, clearing all auth files...`);
+          
+          const userAuthPath = path.join(SESSIONS_BASE, `auth_${userId}`);
+          await clearAuthFiles(userAuthPath);
+
+          broadcastToUser(userId, { type: "disconnected", reason: "logout" });
         }
       } else if (conn === "open") {
         const phoneNumber = sock.user?.id?.split(":")[0] || "";
@@ -337,6 +374,10 @@ export async function disconnectWhatsApp(userId: string): Promise<void> {
     });
   }
 
+  // Limpar arquivos de autenticação para permitir nova conexão
+  const userAuthPath = path.join(SESSIONS_BASE, `auth_${userId}`);
+  await clearAuthFiles(userAuthPath);
+
   broadcastToUser(userId, { type: "disconnected" });
 }
 
@@ -350,6 +391,13 @@ export function getAdminSession(adminId: string): AdminWhatsAppSession | undefin
 
 export async function connectAdminWhatsApp(adminId: string): Promise<void> {
   try {
+    // Verificar se já existe uma sessão ativa
+    const existingSession = adminSessions.get(adminId);
+    if (existingSession?.socket) {
+      console.log(`Admin ${adminId} already has an active session, using existing one`);
+      return;
+    }
+
     let connection = await storage.getAdminWhatsappConnection(adminId);
 
     if (!connection) {
@@ -386,6 +434,12 @@ export async function connectAdminWhatsApp(adminId: string): Promise<void> {
         broadcastToAdmin(adminId, { type: "qr", qr: qrCodeDataUrl });
       }
 
+      // Estado "connecting" - quando o QR Code foi escaneado e está conectando
+      if (connStatus === "connecting") {
+        console.log(`Admin ${adminId} is connecting...`);
+        broadcastToAdmin(adminId, { type: "connecting" });
+      }
+
       if (connStatus === "open") {
         const phoneNumber = socket.user?.id.split(":")[0];
         await storage.updateAdminWhatsappConnection(adminId, {
@@ -406,16 +460,27 @@ export async function connectAdminWhatsApp(adminId: string): Promise<void> {
       if (connStatus === "close") {
         const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
 
+        // Sempre deletar a sessão primeiro
+        adminSessions.delete(adminId);
+
+        // Atualizar banco de dados
+        await storage.updateAdminWhatsappConnection(adminId, {
+          isConnected: false,
+          qrCode: null,
+        });
+
         if (shouldReconnect) {
-          console.log(`Admin ${adminId} WhatsApp disconnected, reconnecting...`);
+          console.log(`Admin ${adminId} WhatsApp disconnected temporarily, reconnecting...`);
+          broadcastToAdmin(adminId, { type: "disconnected" });
           setTimeout(() => connectAdminWhatsApp(adminId), 3000);
         } else {
-          adminSessions.delete(adminId);
-          await storage.updateAdminWhatsappConnection(adminId, {
-            isConnected: false,
-            qrCode: null,
-          });
-          broadcastToAdmin(adminId, { type: "disconnected" });
+          // Foi logout (desconectado pelo celular), limpar TUDO
+          console.log(`Admin ${adminId} logged out from device, clearing all auth files...`);
+          
+          const adminAuthPath = path.join(SESSIONS_BASE, `auth_admin_${adminId}`);
+          await clearAuthFiles(adminAuthPath);
+
+          broadcastToAdmin(adminId, { type: "disconnected", reason: "logout" });
         }
       }
     });
@@ -439,6 +504,10 @@ export async function disconnectAdminWhatsApp(adminId: string): Promise<void> {
       qrCode: null,
     });
   }
+
+  // Limpar arquivos de autenticação para permitir nova conexão
+  const adminAuthPath = path.join(SESSIONS_BASE, `auth_admin_${adminId}`);
+  await clearAuthFiles(adminAuthPath);
 
   broadcastToAdmin(adminId, { type: "disconnected" });
 }
