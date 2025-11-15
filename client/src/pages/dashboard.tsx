@@ -426,27 +426,30 @@ const toolsNavigation: ToolNavItem[] = [
               <SubscribePage />
             </div>
           )}
-            {isDashboardMode && (
-              <>
-            {selectedView === "stats" && (
-              <div className="flex-1 overflow-auto">
-                <DashboardStats connection={connection} />
-              </div>
+          
+          {/* Dashboard Stats */}
+          {isDashboardMode && selectedView === "stats" && (
+            <div className="flex-1 overflow-auto">
+              <DashboardStats connection={connection} />
+            </div>
           )}
 
-          {selectedView === "connection" && (
+          {/* Connection Panel */}
+          {(isConexaoRoute || (isDashboardMode && selectedView === "connection")) && (
             <div className="flex-1 overflow-auto">
               <ConnectionPanel />
             </div>
           )}
 
-          {selectedView === "agent" && (
+          {/* My Agent */}
+          {(isMeuAgenteRoute || (isDashboardMode && selectedView === "agent")) && (
             <div className="flex-1 overflow-auto">
               <MyAgent />
             </div>
           )}
 
-          {selectedView === "conversations" && (
+          {/* Conversations */}
+          {(isConversasRoute || (isDashboardMode && selectedView === "conversations")) && (
             <>
               <div className="w-80 border-r bg-card flex flex-col">
                 <ConversationsList
@@ -479,7 +482,7 @@ const toolsNavigation: ToolNavItem[] = [
                           <Smartphone className="w-5 h-5 text-blue-600 mt-0.5" />
                           <div className="space-y-2">
                             <h3 className="font-semibold text-blue-900 dark:text-blue-100">Conecte seu WhatsApp</h3>
-                            <p className="text-sm text-blue-800 dark:text-blue-200">Escaneie o QR Code para comeÃ§ar a conversar.</p>
+                            <p className="text-sm text-blue-800 dark:text-blue-200">Escaneie o QR Code para começar a conversar.</p>
                             <Button variant="outline" size="sm" onClick={() => goToSection("connection")} data-testid="onboarding-connect-whatsapp">
                               Conectar WhatsApp
                             </Button>
@@ -491,8 +494,6 @@ const toolsNavigation: ToolNavItem[] = [
                 )}
                 <ChatArea conversationId={selectedConversationId} connectionId={connection?.id} />
               </div>
-            </>
-          )}
             </>
           )}
         </div>
