@@ -28,6 +28,9 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/conversas" component={Dashboard} />
+          <Route path="/conexao" component={Dashboard} />
+          <Route path="/meu-agente-ia" component={Dashboard} />
           <Route path="/plans" component={Dashboard} />
           <Route path="/envio-em-massa" component={Dashboard} />
           <Route path="/campanhas" component={Dashboard} />

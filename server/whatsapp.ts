@@ -230,6 +230,19 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
   const remoteJid = waMessage.key.remoteJid;
   if (!remoteJid) return;
 
+  // Filtrar grupos e status - aceitar apenas conversas individuais
+  // @g.us = grupos, @broadcast = status/listas de transmissão
+  if (remoteJid.includes("@g.us") || remoteJid.includes("@broadcast")) {
+    console.log(`Ignoring group/status message from: ${remoteJid}`);
+    return;
+  }
+
+  // Aceitar apenas mensagens de números individuais (@s.whatsapp.net)
+  if (!remoteJid.includes("@s.whatsapp.net")) {
+    console.log(`Ignoring non-individual message from: ${remoteJid}`);
+    return;
+  }
+
   const contactNumber = remoteJid.split("@")[0];
   
   // Extract message data including media

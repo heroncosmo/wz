@@ -7,7 +7,8 @@ import { Search, MessageCircle, Smartphone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Conversation } from "@shared/schema";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { queryClient } from "@/lib/queryClient";
 
 interface ConversationsListProps {
   connectionId?: string;
@@ -21,13 +22,76 @@ export function ConversationsList({
   onSelectConversation,
 }: ConversationsListProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
   const { data: conversations = [], isLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
     enabled: !!connectionId,
+    refetchInterval: 5000, // Refetch a cada 5 segundos como fallback
   });
 
-  const filteredConversations = conversations.filter((conv) => {
+  // WebSocket para atualização em tempo real
+  useEffect(() => {
+    if (!connectionId) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws?userId=${connectionId}`;
+
+    const websocket = new WebSocket(wsUrl);
+
+    websocket.onopen = () => {
+      console.log("WebSocket conectado para conversas");
+    };
+
+    websocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("WebSocket message:", data);
+
+        // Atualizar lista de conversas quando receber nova mensagem
+        if (data.type === "new_message" || data.type === "agent_response") {
+          queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+        }
+      } catch (error) {
+        console.error("Erro ao processar mensagem WebSocket:", error);
+      }
+    };
+
+    websocket.onerror = (error) => {
+      console.error("Erro no WebSocket:", error);
+    };
+
+    websocket.onclose = () => {
+      console.log("WebSocket desconectado");
+    };
+
+    setWs(websocket);
+
+    return () => {
+      websocket.close();
+    };
+  }, [connectionId]);
+
+  // Filtrar conversas de grupos e status no frontend (camada extra de segurança)
+  const individualConversations = conversations.filter((conv) => {
+    // Ignorar conversas que parecem ser de grupos ou status
+    // Grupos geralmente têm contactNumber muito longo ou com padrões específicos
+    const number = conv.contactNumber;
+    
+    // Filtro básico: número deve ter entre 10-15 dígitos (típico de números de telefone)
+    if (number.length < 10 || number.length > 15) {
+      return false;
+    }
+    
+    // Filtro adicional: evitar números que começam com padrões de grupo/broadcast
+    if (number.startsWith("120") || number.startsWith("status")) {
+      return false;
+    }
+    
+    return true;
+  });
+
+  const filteredConversations = individualConversations.filter((conv) => {
     const searchLower = searchQuery.toLowerCase();
     return (
       conv.contactName?.toLowerCase().includes(searchLower) ||

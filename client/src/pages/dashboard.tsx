@@ -53,6 +53,9 @@ export default function Dashboard() {
   const [selectedView, setSelectedView] = useState<"conversations" | "connection" | "stats" | "agent">("conversations");
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [location, setLocation] = useLocation();
+  const isConversasRoute = location.startsWith("/conversas");
+  const isConexaoRoute = location.startsWith("/conexao");
+  const isMeuAgenteRoute = location.startsWith("/meu-agente-ia");
   const isPlansRoute = location.startsWith("/plans");
   const isSettingsRoute = location.startsWith("/settings");
   const isSubscribeRoute = location.startsWith("/subscribe/");
@@ -67,6 +70,9 @@ export default function Dashboard() {
   const isReservationsRoute = location.startsWith("/reservas");
   const isLeadQualificationRoute = location.startsWith("/qualificacao");
   const isDashboardMode =
+    !isConversasRoute &&
+    !isConexaoRoute &&
+    !isMeuAgenteRoute &&
     !isPlansRoute &&
     !isSettingsRoute &&
     !isSubscribeRoute &&
@@ -99,10 +105,30 @@ export default function Dashboard() {
 
   const goToSection = (view: "conversations" | "connection" | "stats" | "agent") => {
     setSelectedView(view);
-    if (location !== "/" && !location.startsWith("/dashboard")) {
+    // Atualizar URL conforme a view
+    if (view === "conversations") {
+      setLocation("/conversas");
+    } else if (view === "connection") {
+      setLocation("/conexao");
+    } else if (view === "agent") {
+      setLocation("/meu-agente-ia");
+    } else if (view === "stats") {
       setLocation("/dashboard");
     }
   };
+
+  // Sincronizar view com a rota atual
+  useEffect(() => {
+    if (isConversasRoute) {
+      setSelectedView("conversations");
+    } else if (isConexaoRoute) {
+      setSelectedView("connection");
+    } else if (isMeuAgenteRoute) {
+      setSelectedView("agent");
+    } else if (isDashboardMode) {
+      setSelectedView("stats");
+    }
+  }, [isConversasRoute, isConexaoRoute, isMeuAgenteRoute, isDashboardMode]);
 
   useEffect(() => {
     if (isToolsRoute) {
