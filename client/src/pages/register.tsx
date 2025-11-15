@@ -8,7 +8,7 @@ import { Bot } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { pushGTMEvent } from "@/lib/gtm";
+import { pushGTMEvent } from "../lib/gtm";
 
 export default function Register() {
   const [, setLocation] = useLocation();

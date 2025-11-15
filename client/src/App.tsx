@@ -12,9 +12,13 @@ import AdminPanel from "@/pages/admin";
 import AdminLogin from "@/pages/admin-login";
 // Plans, Subscribe and Settings are rendered inside Dashboard layout
 import { useAuth } from "@/hooks/useAuth";
+import { useGTM } from "@/hooks/useGTM";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  
+  // Initialize Google Tag Manager and track page views
+  useGTM();
 
   return (
     <Switch>
