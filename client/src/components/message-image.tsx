@@ -43,10 +43,10 @@ export function MessageImage({ src, alt = "Imagem", caption }: MessageImageProps
 
       {/* Lightbox Modal */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden border-0">
           <DialogTitle className="sr-only">Visualizar imagem</DialogTitle>
-          <div className="relative bg-black">
-            <div className="absolute top-2 right-2 z-10 flex gap-2">
+          <div className="relative bg-black w-full h-full">
+            <div className="absolute top-4 right-4 z-10 flex gap-2">
               <Button
                 variant="secondary"
                 size="icon"
@@ -64,15 +64,16 @@ export function MessageImage({ src, alt = "Imagem", caption }: MessageImageProps
                 <X className="w-4 h-4 text-white" />
               </Button>
             </div>
-            <div className="flex items-center justify-center min-h-[300px] max-h-[85vh] p-4">
+            <div className="flex items-center justify-center w-full h-full p-8 pt-16">
               <img
                 src={src}
                 alt={alt}
-                className="max-w-full max-h-full object-contain"
+                className="w-auto h-auto max-w-full max-h-[calc(95vh-8rem)] object-contain"
+                style={{ display: 'block' }}
               />
             </div>
             {caption && (
-              <div className="bg-black/80 text-white p-4 backdrop-blur">
+              <div className="absolute bottom-0 left-0 right-0 bg-black/90 text-white p-4 backdrop-blur">
                 <p className="text-sm whitespace-pre-wrap break-words">{caption}</p>
               </div>
             )}
