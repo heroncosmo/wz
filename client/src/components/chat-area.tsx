@@ -282,18 +282,31 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-auto p-4 space-y-4" data-testid="container-messages">
+        {/* Filtrar mensagens de sistema/eco que vieram de integrações antigas,
+            por exemplo textos \"[Mensagem n\u00e3o suportada]\" */}
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : messages.length === 0 ? (
+        ) : messages.filter((m) => {
+            if (m.mediaType) return true;
+            const t = m.text?.toLowerCase() || "";
+            // esconde mensagens de placeholder como \"[mensagem n\u00e3o suportada]\"
+            return !(t.includes("mensagem") && t.includes("suportada"));
+          }).length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center space-y-2">
               <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda</p>
             </div>
           </div>
         ) : (
-          messages.map((message) => (
+          messages
+            .filter((m) => {
+              if (m.mediaType) return true;
+              const t = m.text?.toLowerCase() || "";
+              return !(t.includes("mensagem") && t.includes("suportada"));
+            })
+            .map((message) => (
             <div
               key={message.id}
               className={`flex ${message.fromMe ? "justify-end" : "justify-start"}`}
