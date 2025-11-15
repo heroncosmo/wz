@@ -211,7 +211,18 @@ export async function connectWhatsApp(userId: string): Promise<void> {
 
     sock.ev.on("messages.upsert", async (m) => {
       const message = m.messages[0];
+      
+      // Ignorar mensagens enviadas por mim
       if (!message.message || message.key.fromMe) return;
+      
+      // Verificação extra: ignorar se o remoteJid é o próprio número
+      if (message.key.remoteJid && session.phoneNumber) {
+        const remoteNumber = message.key.remoteJid.split("@")[0];
+        if (remoteNumber === session.phoneNumber) {
+          console.log(`Ignoring echo message from own number: ${remoteNumber}`);
+          return;
+        }
+      }
 
       try {
         await handleIncomingMessage(session, message);
@@ -244,6 +255,12 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
   }
 
   const contactNumber = remoteJid.split("@")[0];
+  
+  // Ignorar mensagens do próprio número conectado
+  if (session.phoneNumber && contactNumber === session.phoneNumber) {
+    console.log(`Ignoring message from own number: ${contactNumber}`);
+    return;
+  }
   
   // Extract message data including media
   let messageText = "";
@@ -313,8 +330,10 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     mediaMimeType = msg.documentMessage.mimetype || "application/octet-stream";
     messageText = `📄 ${msg.documentMessage.fileName || "Documento"}`;
   }
+  // Ignorar mensagens de tipos não suportados (reações, status, etc)
   else {
-    messageText = "[Mensagem não suportada]";
+    console.log(`Ignoring unsupported message type from ${contactNumber}:`, Object.keys(msg || {}));
+    return; // Não processar mensagens não suportadas
   }
 
   let conversation = await storage.getConversationByContactNumber(
@@ -361,48 +380,57 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     mediaType,
   });
 
-  // AI Agent Auto-Response
+  // AI Agent Auto-Response com delay de 30 segundos
   try {
     const isAgentDisabled = await storage.isAgentDisabledForConversation(conversation.id);
     
     if (!isAgentDisabled) {
-      const conversationHistory = await storage.getMessagesByConversationId(conversation.id);
-      const aiResponse = await generateAIResponse(
-        session.userId,
-        conversationHistory,
-        messageText
-      );
+      console.log(`Scheduling AI response for ${contactNumber} in 30 seconds...`);
+      
+      // Aguardar 30 segundos antes de responder
+      setTimeout(async () => {
+        try {
+          const conversationHistory = await storage.getMessagesByConversationId(conversation.id);
+          const aiResponse = await generateAIResponse(
+            session.userId,
+            conversationHistory,
+            messageText
+          );
 
-      if (aiResponse && session.socket) {
-        const jid = `${contactNumber}@s.whatsapp.net`;
-        const sentMessage = await session.socket.sendMessage(jid, { text: aiResponse });
+          if (aiResponse && session.socket) {
+            const jid = `${contactNumber}@s.whatsapp.net`;
+            const sentMessage = await session.socket.sendMessage(jid, { text: aiResponse });
 
-        await storage.createMessage({
-          conversationId: conversation.id,
-          messageId: sentMessage?.key.id || Date.now().toString(),
-          fromMe: true,
-          text: aiResponse,
-          timestamp: new Date(),
-          status: "sent",
-          isFromAgent: true,
-        });
+            await storage.createMessage({
+              conversationId: conversation.id,
+              messageId: sentMessage?.key.id || Date.now().toString(),
+              fromMe: true,
+              text: aiResponse,
+              timestamp: new Date(),
+              status: "sent",
+              isFromAgent: true,
+            });
 
-        await storage.updateConversation(conversation.id, {
-          lastMessageText: aiResponse,
-          lastMessageTime: new Date(),
-        });
+            await storage.updateConversation(conversation.id, {
+              lastMessageText: aiResponse,
+              lastMessageTime: new Date(),
+            });
 
-        broadcastToUser(session.userId, {
-          type: "agent_response",
-          conversationId: conversation.id,
-          message: aiResponse,
-        });
+            broadcastToUser(session.userId, {
+              type: "agent_response",
+              conversationId: conversation.id,
+              message: aiResponse,
+            });
 
-        console.log(`AI Agent responded to ${contactNumber}: ${aiResponse}`);
-      }
+            console.log(`AI Agent responded to ${contactNumber} after 30s: ${aiResponse}`);
+          }
+        } catch (error) {
+          console.error("Error generating delayed AI response:", error);
+        }
+      }, 30000); // 30 segundos = 30000 milissegundos
     }
   } catch (error) {
-    console.error("Error generating AI response:", error);
+    console.error("Error scheduling AI response:", error);
   }
 }
 

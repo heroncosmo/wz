@@ -427,6 +427,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/agent/toggle/:conversationId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { conversationId } = req.params;
+      const { disable } = req.body;
+      const userId = getUserId(req);
+
+      // Verify ownership
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const connection = await storage.getConnectionByUserId(userId);
+      if (!connection || conversation.connectionId !== connection.id) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      if (disable) {
+        await storage.disableAgentForConversation(conversationId);
+      } else {
+        await storage.enableAgentForConversation(conversationId);
+      }
+
+      res.json({ success: true, isDisabled: disable });
+    } catch (error) {
+      console.error("Error toggling agent:", error);
+      res.status(500).json({ message: "Failed to toggle agent" });
+    }
+  });
+
+  app.get("/api/agent/status/:conversationId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = getUserId(req);
+
+      // Verify ownership
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const connection = await storage.getConnectionByUserId(userId);
+      if (!connection || conversation.connectionId !== connection.id) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const isDisabled = await storage.isAgentDisabledForConversation(conversationId);
+      res.json({ isDisabled });
+    } catch (error) {
+      console.error("Error getting agent status:", error);
+      res.status(500).json({ message: "Failed to get agent status" });
+    }
+  });
+
   // ==================== PLANOS ROUTES ====================
   // Get all active plans (public)
   app.get("/api/plans", async (_req, res) => {
