@@ -152,13 +152,8 @@ export async function setupAuth(app: Express) {
         return res.status(400).json({ message: "Telefone inválido. Use formato: 11999999999 ou +5511999999999" });
       }
 
-      // Verificar se telefone já existe
-      const existingUsers = await storage.getAllUsers();
-      const phoneExists = existingUsers.some(u => u.phone === formattedPhone);
-
-      if (phoneExists) {
-        return res.status(400).json({ message: "Este telefone já está cadastrado" });
-      }
+      // Nota: Removida verificação de telefone duplicado - múltiplos usuários podem usar mesmo número
+      // Apenas email continua sendo único
 
       // Criar usuário no Supabase Auth
       const { data, error } = await supabase.auth.admin.createUser({
