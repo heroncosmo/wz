@@ -100,7 +100,8 @@ export default function Dashboard() {
     isSchedulingRoute ||
     isReservationsRoute ||
     isLeadQualificationRoute;
-  const [toolsOpen, setToolsOpen] = useState(true);
+  // Start tools collapsed by default; open only when user clicks or route requires it
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [toolsPickerOpen, setToolsPickerOpen] = useState(false);
 
   const goToSection = (view: "conversations" | "connection" | "stats" | "agent") => {
