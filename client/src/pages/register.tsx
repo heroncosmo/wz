@@ -8,7 +8,6 @@ import { Bot } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { pushGTMEvent } from "../lib/gtm";
 
 export default function Register() {
   const [, setLocation] = useLocation();
@@ -56,12 +55,17 @@ export default function Register() {
         description: "Fazendo login...",
       });
 
-      // Dispara evento de conversão para GTM/GA4/Google Ads
-      pushGTMEvent("signup_complete", {
-        email,
-        phone,
-        source: "landing_cadastro",
-      });
+      // Dispara evento de conversão para GTM/GA4/Google Ads diretamente no dataLayer global
+      if (typeof window !== "undefined") {
+        const w = window as any;
+        w.dataLayer = w.dataLayer || [];
+        w.dataLayer.push({
+          event: "signup_complete",
+          email,
+          phone,
+          source: "landing_cadastro",
+        });
+      }
 
       // Após criar o usuário via API (admin), autentica no cliente
       const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
