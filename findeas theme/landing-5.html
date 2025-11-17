@@ -21,16 +21,34 @@
   <meta name="keywords" content="agentezap, whatsapp, ia, crm, vendas, atendimento, agenda, automacao, saas">
   <!-- Favicon -->
   <link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
-  <!-- Remix Icon -->
-  <link rel="stylesheet" href="assets/icon/remixicon/remixicon.css">
-  <!-- Plyr - HTML5, YouTube and Vimeo media player -->
-  <link rel="stylesheet" href="assets/css/plyr.min.css">
-  <!-- AOS (Animate On Scroll) -->
-  <link rel="stylesheet" href="assets/css/aos.min.css">
-  <!-- Swiper - Touch Slider -->
-  <link rel="stylesheet" href="assets/css/swiper.min.css">
-  <!-- Findeas -->
-  <link rel="stylesheet" href="assets/css/findeas.min.css">
+  
+  <!-- Preconnect para Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <!-- CSS Crítico Inline (apenas estilos essenciais above-the-fold) -->
+  <style>
+    body{margin:0;font-family:Inter,sans-serif;overflow-x:hidden}
+    .preloader{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999}
+    .navbar{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+    header{min-height:60px}
+  </style>
+  
+  <!-- CSS Não-Crítico (carregar assíncronamente) -->
+  <link rel="preload" href="assets/css/findeas.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="assets/css/findeas.min.css"></noscript>
+  
+  <!-- CSS de bibliotecas (defer para depois da primeira pintura) -->
+  <link rel="preload" href="assets/icon/remixicon/remixicon.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="assets/css/plyr.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="assets/css/aos.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="assets/css/swiper.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet" href="assets/icon/remixicon/remixicon.css">
+    <link rel="stylesheet" href="assets/css/plyr.min.css">
+    <link rel="stylesheet" href="assets/css/aos.min.css">
+    <link rel="stylesheet" href="assets/css/swiper.min.css">
+  </noscript>
 </head>
 
 <body>
@@ -152,13 +170,13 @@
           </div>
           <div class="mt-4 mb-5" data-aos="fade-up" data-aos-delay="300">
             <p class="mb-2">Confiado por:</p>
-            <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-treva.png" alt="Brand" height="28">
-            <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-muzica.png" alt="Brand" height="28">
-            <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-goldline.png" alt="Brand" height="28">
+            <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-treva.png" alt="Brand" width="101" height="28" loading="lazy">
+            <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-muzica.png" alt="Brand" width="112" height="28" loading="lazy">
+            <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-goldline.png" alt="Brand" width="120" height="28" loading="lazy">
           </div>
         </div>
         <div class="col-lg-6" data-aos="fade-left">
-          <img class="img-fluid rounded-lg" src="assets/img/image1.png" alt="Image" data-zoomable>
+          <img class="img-fluid rounded-lg" src="assets/img/image1.png" alt="Agente IA respondendo automaticamente no WhatsApp" width="382" height="382" fetchpriority="high" data-zoomable>
         </div>
       </div>
     </div>
@@ -400,7 +418,7 @@
               </div>
             </div>
             <div class="col-md-6" data-aos="fade-up" data-aos-delay="300">
-              <img id="recursos-right-img" class="img-fluid rounded-lg" src="assets/img/111.jpg" alt="Image" data-zoomable>
+              <img id="recursos-right-img" class="img-fluid rounded-lg" src="assets/img/111.jpg" alt="Recursos do AgenteZap" width="382" height="593" loading="lazy" data-zoomable>
             </div>
           </div>
         </div>
@@ -410,16 +428,16 @@
           <p class="lead mt-2 mb-4">IA, CRM, Marketing, Agenda e Pagamentos integrados nativamente.</p>
           <div class="row mt-5">
             <div class="col" data-aos="fade-left" data-aos-delay="200">
-              <img src="assets/img/logo-atica.png" height="48" alt="Brand">
+              <img src="assets/img/logo-atica.png" width="48" height="48" alt="Brand" loading="lazy">
             </div>
             <div class="col" data-aos="fade-left" data-aos-delay="300">
-              <img src="assets/img/logo-earth.png" height="48" alt="Brand">
+              <img src="assets/img/logo-earth.png" width="48" height="48" alt="Brand" loading="lazy">
             </div>
             <div class="col" data-aos="fade-left" data-aos-delay="400">
-              <img src="assets/img/logo-tvit.png" height="48" alt="Brand">
+              <img src="assets/img/logo-tvit.png" width="48" height="48" alt="Brand" loading="lazy">
             </div>
             <div class="col" data-aos="fade-left" data-aos-delay="500">
-              <img src="assets/img/logo-9.png" height="48" alt="Brand">
+              <img src="assets/img/logo-9.png" width="48" height="48" alt="Brand" loading="lazy">
             </div>
           </div>
         </div>
@@ -476,7 +494,7 @@
           </div>
         </div>
         <div class="col-lg-6" data-aos="fade-left">
-          <img class="img-fluid rounded-lg" src="assets/img/222.png" alt="Image" data-zoomable>
+          <img class="img-fluid rounded-lg" src="assets/img/222.png" alt="Dashboard completo do AgenteZap" width="382" height="382" loading="lazy" data-zoomable>
         </div>
       </div>
     </div>
@@ -805,28 +823,20 @@
     </a>
   </div>
 
-  <!-- jQuery -->
-  <script src="assets/js/jquery.min.js"></script>
-  <!-- Popper -->
-  <script src="assets/js/popper.min.js"></script>
-  <!-- Bootstrap -->
-  <script src="assets/js/bootstrap.min.js"></script>
-  <!-- SVG Inject -->
-  <script src="assets/js/svg-inject.min.js"></script>
-  <!-- AOS (Animate On Scroll) -->
-  <script src="assets/js/aos.min.js"></script>
-  <!-- Medium Zoom -->
-  <script src="assets/js/medium-zoom.min.js"></script>
-  <!-- Plyr - HTML5, YouTube and Vimeo media player -->
-  <script src="assets/js/plyr.min.js"></script>
-  <!-- Swiper - Touch Slider -->
-  <script src="assets/js/swiper.min.js"></script>
-  <!-- Waypoints -->
-  <script src="assets/js/jquery.waypoints.min.js"></script>
-  <!-- Counterup -->
-  <script src="assets/js/counterup.min.js"></script>
-  <!-- Findeas -->
-  <script src="assets/js/findeas.js"></script>
+  <!-- jQuery (necessário primeiro) -->
+  <script src="assets/js/jquery.min.js" defer></script>
+  <!-- Scripts essenciais -->
+  <script src="assets/js/popper.min.js" defer></script>
+  <script src="assets/js/bootstrap.min.js" defer></script>
+  <script src="assets/js/findeas.js" defer></script>
+  <!-- Scripts não-críticos (carregar depois) -->
+  <script src="assets/js/svg-inject.min.js" defer></script>
+  <script src="assets/js/aos.min.js" defer></script>
+  <script src="assets/js/medium-zoom.min.js" defer></script>
+  <script src="assets/js/plyr.min.js" defer></script>
+  <script src="assets/js/swiper.min.js" defer></script>
+  <script src="assets/js/jquery.waypoints.min.js" defer></script>
+  <script src="assets/js/counterup.min.js" defer></script>
   <script>
     // Ajusta a altura do mockup para igualar a imagem à direita
     (function(){
