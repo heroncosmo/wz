@@ -13,7 +13,7 @@ IMG_DIR = Path("findeas theme/assets/img")
 QUALITY_DESKTOP = 80
 QUALITY_MOBILE = 75
 SIZE_DESKTOP = (382, 382)
-SIZE_MOBILE = (300, 300)
+SIZE_MOBILE = (382, 382)  # Mesmo tamanho para evitar baixa resolução
 
 # Imagens principais para converter
 IMAGES_TO_CONVERT = [
@@ -35,7 +35,7 @@ IMAGES_TO_CONVERT = [
         "source": "111.jpg",
         "outputs": [
             {"name": "111.webp", "size": (382, 593), "quality": QUALITY_DESKTOP},
-            {"name": "111-mobile.webp", "size": (300, 465), "quality": QUALITY_MOBILE}
+            {"name": "111-mobile.webp", "size": (382, 593), "quality": QUALITY_MOBILE}  # Mesmo tamanho
         ]
     }
 ]
