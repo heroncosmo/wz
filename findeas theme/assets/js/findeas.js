@@ -92,10 +92,12 @@ $(window).on('load', function () {
     height: 'auto',
   });
 
-  // AOS
-  AOS.init({
-    once: true
-  });
+  // AOS (inicializar apenas quando carregado)
+  if (typeof AOS !== 'undefined') {
+    AOS.init({
+      once: true
+    });
+  }
 });
 
 $(function () {
@@ -103,11 +105,15 @@ $(function () {
       03. Plugins
   ==================================================================== */
 
-  // SVG Inject
-  SVGInject(document.querySelectorAll('[data-svg-inject]'));
+  // SVG Inject (verificar se está disponível)
+  if (typeof SVGInject !== 'undefined') {
+    SVGInject(document.querySelectorAll('[data-svg-inject]'));
+  }
 
-  // Medium Zoom
-  mediumZoom('[data-zoomable]');
+  // Medium Zoom (verificar se está disponível)
+  if (typeof mediumZoom !== 'undefined') {
+    mediumZoom('[data-zoomable]');
+  }
 
   // Plyr Video Player
   if ($('div').hasClass('plyr')) {

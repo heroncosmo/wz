@@ -40,19 +40,20 @@ IMAGES_TO_CONVERT = [
     }
 ]
 
-# Logos para converter (600x600 -> 48x48)
+# Logos para converter (600x600 -> 96x96 para retina)
 LOGOS = [
     "logo-atica.png",
     "logo-earth.png",
     "logo-tvit.png",
     "logo-9.png"
 ]
+LOGO_SIZE = (96, 96)  # 2x para retina displays (exibido como 48x48)
 
-# Logos grandes para converter
+# Logos grandes para converter (2x resolution para retina)
 BRAND_LOGOS = [
-    {"source": "logo-treva.png", "size": (101, 28)},
-    {"source": "logo-muzica.png", "size": (112, 28)},
-    {"source": "logo-goldline.png", "size": (120, 28)}
+    {"source": "logo-treva.png", "size": (202, 56)},  # 2x para retina displays
+    {"source": "logo-muzica.png", "size": (224, 56)},  # 2x para retina displays
+    {"source": "logo-goldline.png", "size": (240, 56)}  # 2x para retina displays
 ]
 
 def format_size(bytes):
@@ -126,8 +127,8 @@ def main():
                 total_original += original_size
                 total_new += os.path.getsize(output_path)
     
-    # Converter logos pequenos
-    print("\n🏢 Convertendo logos de integração...")
+    # Converter logos pequenos (2x resolution para retina)
+    print("\n🏢 Convertando logos de integração (96x96 para retina)...")
     for logo in LOGOS:
         source_path = IMG_DIR / logo
         
@@ -138,7 +139,7 @@ def main():
         output_path = IMG_DIR / logo.replace('.png', '.webp')
         original_size = os.path.getsize(source_path)
         
-        if convert_image(source_path, output_path, (48, 48), QUALITY_DESKTOP):
+        if convert_image(source_path, output_path, LOGO_SIZE, QUALITY_DESKTOP):
             converted += 1
             total_original += original_size
             total_new += os.path.getsize(output_path)
