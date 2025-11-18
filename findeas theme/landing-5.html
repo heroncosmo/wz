@@ -176,7 +176,6 @@
               Comece gratuitamente agora
               <i class="ri-arrow-right-line ri-lg ml-2"></i>
             </a>
-            <a href="https://wa.me/5517981679818?text=agendar%20a%20demo" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark">Agendar demo</a>
             <p class="text-muted mt-1"><small>Sem cartão de crédito · Cancelar quando quiser         </small></p>
           </div>
           <div class="mt-4 mb-5" data-aos="fade-up" data-aos-delay="300">
@@ -876,14 +875,19 @@
       .whatsapp-fab-btn .ri-whatsapp-fill{font-size:28px}
     }
     @media(max-width:576px){
-      .whatsapp-fab{right:10px;bottom:12px;gap:6px}
-      .whatsapp-fab-message{padding:8px 12px;max-width:170px}
-      .whatsapp-fab-message-icon{width:28px;height:28px}
-      .whatsapp-fab-message-icon i{font-size:16px}
-      .whatsapp-fab-message-text{font-size:12px;max-width:140px}
+      /* Mostrar a mensagem à ESQUERDA do botão no mobile
+         - mantemos o container alinhado à direita, mas exibimos
+         a mensagem como um bloco menor à esquerda do botão
+      */
+      .whatsapp-fab{right:12px;bottom:12px;gap:8px;flex-direction:row;align-items:center}
+      /* Tornar a mensagem visível imediatamente (sem animação que a esconde) */
+      .whatsapp-fab-message{padding:6px 10px;max-width:160px;transform:none;opacity:1;animation:none}
+      .whatsapp-fab-message-icon{width:26px;height:26px}
+      .whatsapp-fab-message-icon i{font-size:15px}
+      .whatsapp-fab-message-text{font-size:12px;max-width:120px}
       .whatsapp-fab-btn{width:52px;height:52px}
       .whatsapp-fab-btn .ri-whatsapp-fill{font-size:26px}
-      .whatsapp-fab-badge{width:20px;height:20px;font-size:11px}
+      .whatsapp-fab-badge{width:18px;height:18px;font-size:11px}
     }
   </style>
   <div class="whatsapp-fab" aria-hidden="false">
