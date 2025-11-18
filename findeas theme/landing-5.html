@@ -851,19 +851,61 @@
   </footer>
   <!-- End Footer -->
 
-  <!-- Floating WhatsApp button -->
+  <!-- Floating WhatsApp button com mensagem e notificação -->
   <style>
-    .whatsapp-fab{position:fixed;right:18px;bottom:22px;z-index:9999}
-    .whatsapp-fab a{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#0b8c8c;color:#fff;box-shadow:0 8px 24px rgba(11,140,140,0.18);text-decoration:none}
-    .whatsapp-fab a .ri-whatsapp-fill{font-size:24px}
-    .whatsapp-fab a:hover{transform:translateY(-4px);transition:transform .16s ease}
-    @media(max-width:576px){.whatsapp-fab{right:12px;bottom:14px}.whatsapp-fab a{width:52px;height:52px}}
+    .whatsapp-fab{position:fixed;right:18px;bottom:22px;z-index:9999;display:flex;align-items:center;gap:12px}
+    .whatsapp-fab-message{background:#fff;padding:10px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;opacity:0;transform:translateX(20px);animation:slideInMessage 0.4s ease forwards;animation-delay:1s}
+    .whatsapp-fab-message-icon{width:32px;height:32px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .whatsapp-fab-message-icon i{color:#fff;font-size:18px}
+    .whatsapp-fab-message-text{font-size:13px;color:#333;line-height:1.3;max-width:180px}
+    .whatsapp-fab-message-text strong{display:block;color:#25D366;font-weight:600;margin-bottom:2px}
+    .whatsapp-fab-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:60px;height:60px;border-radius:50%;background:#25D366;color:#fff;box-shadow:0 4px 12px rgba(37,211,102,0.4);text-decoration:none;transition:all 0.3s ease}
+    .whatsapp-fab-btn:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(37,211,102,0.5)}
+    .whatsapp-fab-btn .ri-whatsapp-fill{font-size:32px}
+    .whatsapp-fab-badge{position:absolute;top:-4px;right:-4px;background:#FF3B30;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;animation:pulse 2s infinite}
+    .whatsapp-shake{animation:shake 0.5s ease-in-out}
+    @keyframes slideInMessage{to{opacity:1;transform:translateX(0)}}
+    @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-8px)}20%,40%,60%,80%{transform:translateX(8px)}}
+    @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:0.8}}
+    @media(max-width:768px){
+      .whatsapp-fab{right:12px;bottom:14px;flex-direction:column-reverse;align-items:flex-end;gap:8px}
+      .whatsapp-fab-message{max-width:200px}
+      .whatsapp-fab-btn{width:56px;height:56px}
+      .whatsapp-fab-btn .ri-whatsapp-fill{font-size:28px}
+    }
+    @media(max-width:576px){
+      .whatsapp-fab-message{display:none}
+    }
   </style>
   <div class="whatsapp-fab" aria-hidden="false">
-    <a href="https://wa.me/5517981679818?text=Ol%C3%A1%2C%20preciso%20de%20suporte" target="_blank" rel="noopener noreferrer" aria-label="Abrir conversa no WhatsApp" title="Fale conosco no WhatsApp">
+    <div class="whatsapp-fab-message">
+      <div class="whatsapp-fab-message-icon">
+        <i class="ri-customer-service-2-fill"></i>
+      </div>
+      <div class="whatsapp-fab-message-text">
+        <strong>Fale com nossa equipe</strong>
+        de atendimento 😊
+      </div>
+    </div>
+    <a href="https://wa.me/5517981679818?text=Ol%C3%A1%2C%20preciso%20de%20suporte" target="_blank" rel="noopener noreferrer" class="whatsapp-fab-btn" aria-label="Abrir conversa no WhatsApp">
+      <span class="whatsapp-fab-badge">2</span>
       <i class="ri-whatsapp-fill" aria-hidden="true"></i>
     </a>
   </div>
+  
+  <!-- Script para efeito de tremor a cada 5 segundos -->
+  <script>
+    (function(){
+      var btn = document.querySelector('.whatsapp-fab-btn');
+      if(!btn) return;
+      setInterval(function(){
+        btn.classList.add('whatsapp-shake');
+        setTimeout(function(){
+          btn.classList.remove('whatsapp-shake');
+        }, 500);
+      }, 5000);
+    })();
+  </script>
 
   <!-- jQuery (necessário primeiro) -->
   <script src="assets/js/jquery.min.js" defer></script>
