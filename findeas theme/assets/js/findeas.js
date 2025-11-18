@@ -80,18 +80,9 @@ $('#contact').on('submit', function (e) {
 });
 
 /* =================================================================
-    02. Preloader / Window Load
+    02. Window Load / AOS Init
 ==================================================================== */
 $(window).on('load', function () {
-  // Fadeout Preloader
-  $('#preloader').fadeOut();
-
-  // Enable Scrollbar
-  $('body').css({
-    overflow: 'auto',
-    height: 'auto',
-  });
-
   // AOS (inicializar apenas quando carregado)
   if (typeof AOS !== 'undefined') {
     AOS.init({
