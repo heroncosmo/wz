@@ -178,35 +178,19 @@
             </a>
             <p class="text-muted mt-1"><small>Comece a usar sem pagar nada por isso!         </small></p>
           </div>
-          <div class="mt-4 mb-5" data-aos="fade-up" data-aos-delay="300">
-            <p class="mb-2">Confiado por:</p>
-            <picture>
-              <source type="image/webp" srcset="assets/img/logo-treva.webp">
-              <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-treva.png" alt="Brand" width="101" height="28" loading="lazy">
-            </picture>
-            <picture>
-              <source type="image/webp" srcset="assets/img/logo-muzica.webp">
-              <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-muzica.png" alt="Brand" width="112" height="28" loading="lazy">
-            </picture>
-            <picture>
-              <source type="image/webp" srcset="assets/img/logo-goldline.webp">
-              <img class="mr-3 mb-3 mb-md-0" src="assets/img/logo-goldline.png" alt="Brand" width="120" height="28" loading="lazy">
-            </picture>
-          </div>
+          
         </div>
         <div class="col-lg-6">
-          <!-- Responsive YouTube embed replacing the previous picture -->
-          <div class="video-wrap" style="display:block;max-width:382px;margin-inline:auto;aspect-ratio:16/9;">
-            <iframe class="rounded-lg" width="560" height="315"
-              src="https://www.youtube.com/embed/L1nKUi5HBNI?si=w5q5SpjYY9pdMA3M"
-              title="YouTube video player"
-              frameborder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerpolicy="strict-origin-when-cross-origin"
-              allowfullscreen
-              loading="lazy"
-              style="width:100%;height:100%;border:0;">
-            </iframe>
+          <!-- Custom YouTube player with click-to-load and large play button -->
+          <div class="custom-video-player" data-video-id="L1nKUi5HBNI" style="display:block;max-width:382px;margin-inline:auto;aspect-ratio:16/9;position:relative;cursor:pointer;overflow:hidden;border-radius:0.5rem;background:#000;">
+            <!-- High-quality thumbnail from YouTube -->
+            <img class="video-thumbnail" src="https://i.ytimg.com/vi/L1nKUi5HBNI/maxresdefault.jpg" alt="Vídeo demonstração AgenteZap" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;transition:opacity 0.3s ease;">
+            <!-- Large centered play button -->
+            <div class="play-button-overlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;background:rgba(255,255,255,0.95);border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all 0.3s ease;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style="margin-left:4px;">
+                <path d="M8 5v14l11-7L8 5z" fill="#dc3545" stroke="#dc3545" stroke-width="2"/>
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -1097,6 +1081,57 @@
         }catch(e){ console && console.warn && console.warn(e); }
       }
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', revealAosImmediately); else revealAosImmediately();
+    })();
+  </script>
+
+  <!-- Custom video player: click-to-load YouTube iframe with autoplay and minimal branding -->
+  <script>
+    (function(){
+      function initCustomVideoPlayer(){
+        var players = document.querySelectorAll('.custom-video-player');
+        players.forEach(function(player){
+          player.addEventListener('click', function(){
+            var videoId = player.getAttribute('data-video-id');
+            if(!videoId) return;
+
+            // YouTube iframe with autoplay, minimal branding, and no related videos from other channels
+            var iframe = document.createElement('iframe');
+            iframe.setAttribute('src', 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1');
+            iframe.setAttribute('frameborder', '0');
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+            iframe.setAttribute('allowfullscreen', '');
+            iframe.setAttribute('title', 'Vídeo demonstração AgenteZap');
+            iframe.style.cssText = 'width:100%;height:100%;position:absolute;top:0;left:0;border:0;border-radius:0.5rem;';
+
+            // Replace player content with iframe
+            player.innerHTML = '';
+            player.appendChild(iframe);
+            player.style.cursor = 'default';
+          });
+
+          // Hover effect for play button
+          player.addEventListener('mouseenter', function(){
+            var btn = player.querySelector('.play-button-overlay');
+            if(btn){
+              btn.style.transform = 'translate(-50%,-50%) scale(1.1)';
+              btn.style.background = 'rgba(255,255,255,1)';
+            }
+          });
+          player.addEventListener('mouseleave', function(){
+            var btn = player.querySelector('.play-button-overlay');
+            if(btn){
+              btn.style.transform = 'translate(-50%,-50%) scale(1)';
+              btn.style.background = 'rgba(255,255,255,0.95)';
+            }
+          });
+        });
+      }
+
+      if(document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', initCustomVideoPlayer);
+      } else {
+        initCustomVideoPlayer();
+      }
     })();
   </script>
 </body>
