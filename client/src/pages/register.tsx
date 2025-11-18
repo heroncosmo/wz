@@ -138,7 +138,7 @@ export default function Register() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="phone">Celular WhatsApp do seu negócio</Label>
               <Input
                 id="phone"
                 type="tel"
