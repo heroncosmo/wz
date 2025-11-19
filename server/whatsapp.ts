@@ -5,6 +5,8 @@
   proto,
   WAMessage,
   downloadMediaMessage,
+  jidDecode,
+  jidNormalizedUser,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -257,20 +259,22 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  // CORREÇÃO: Extrair número correto do JID E o suffix para reconstruir depois
-  // Formato: número@suffix (ex: 5517912345678@s.whatsapp.net ou 254635809968349:20@lid)
-  const jidParts = remoteJid.split("@");
-  let contactNumber = jidParts[0];
-  const jidSuffix = jidParts[1] || "s.whatsapp.net"; // suffix original (s.whatsapp.net ou lid)
+  // SOLUÇÃO BAILEYS 2025: Usar jidDecode para extrair número real limpo
+  // jidDecode automaticamente separa: user (número), server (s.whatsapp.net/lid), device (:20)
+  const decoded = jidDecode(remoteJid);
   
-  // Se for @lid, pode ter metadata após ":" - vamos remover
-  // Exemplo: 254635809968349:20@lid -> queremos apenas 254635809968349
-  if (remoteJid.includes("@lid") && contactNumber.includes(":")) {
-    contactNumber = contactNumber.split(":")[0];
+  if (!decoded) {
+    console.log(`[WhatsApp] Could not decode JID: ${remoteJid}`);
+    return;
   }
   
-  console.log(`[WhatsApp] Processing message from remoteJid: ${remoteJid}`);
-  console.log(`[WhatsApp] Extracted number: ${contactNumber}, suffix: ${jidSuffix}`);
+  const contactNumber = decoded.user; // Número LIMPO sem :device
+  const jidSuffix = decoded.server; // s.whatsapp.net ou lid
+  
+  console.log(`[WhatsApp] Decoded JID: ${remoteJid}`);
+  console.log(`[WhatsApp] → User (clean number): ${contactNumber}`);
+  console.log(`[WhatsApp] → Server: ${jidSuffix}`);
+  console.log(`[WhatsApp] → Device: ${decoded.device || 'none'}`);
   
   // Ignorar mensagens do próprio número conectado
   if (session.phoneNumber && contactNumber === session.phoneNumber) {
