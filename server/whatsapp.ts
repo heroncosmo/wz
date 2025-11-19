@@ -242,7 +242,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
   if (!remoteJid) return;
 
   // Filtrar grupos e status - aceitar apenas conversas individuais
-  // @g.us = grupos, @broadcast = status/listas de transmissÃ£o
+  // @g.us = grupos, @broadcast = status/listas de transmissão
   if (remoteJid.includes("@g.us") || remoteJid.includes("@broadcast")) {
     console.log(`Ignoring group/status message from: ${remoteJid}`);
     return;
@@ -257,9 +257,21 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  const contactNumber = remoteJid.split("@")[0];
+  // CORREÇÃO: Extrair número correto do JID
+  // Para @lid (WhatsApp Business/Channels), o formato pode ser diferente
+  // Precisamos garantir que extraímos o número real do telefone
+  let contactNumber = remoteJid.split("@")[0];
   
-  // Ignorar mensagens do prÃ³prio nÃºmero conectado
+  // Se for @lid, pode ter formato diferente - vamos normalizar
+  // Exemplo: 254635809968349:20@lid -> queremos apenas os dígitos do telefone
+  if (remoteJid.includes("@lid")) {
+    // Remove tudo após : se existir
+    contactNumber = contactNumber.split(":")[0];
+  }
+  
+  console.log(`[WhatsApp] Processing message from remoteJid: ${remoteJid}, extracted number: ${contactNumber}`);
+  
+  // Ignorar mensagens do próprio número conectado
   if (session.phoneNumber && contactNumber === session.phoneNumber) {
     console.log(`Ignoring message from own number: ${contactNumber}`);
     return;
