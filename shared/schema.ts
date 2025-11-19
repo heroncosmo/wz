@@ -44,8 +44,12 @@ export const whatsappConnections = pgTable("whatsapp_connections", {
 // Conversations table
 export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  connectionId: varchar("connection_id").notNull().references(() => whatsappConnections.id, { onDelete: 'cascade' }),
+  connectionId: varchar("connection_id")
+    .notNull()
+    .references(() => whatsappConnections.id, { onDelete: "cascade" }),
   contactNumber: varchar("contact_number").notNull(),
+  // Sufixo/domínio do JID usado para enviar mensagens (ex: s.whatsapp.net, lid)
+  jidSuffix: varchar("jid_suffix", { length: 32 }).default("s.whatsapp.net"),
   contactName: varchar("contact_name"),
   lastMessageText: text("last_message_text"),
   lastMessageTime: timestamp("last_message_time"),

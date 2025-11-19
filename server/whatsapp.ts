@@ -423,7 +423,9 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
           );
 
           if (aiResponse) {
-            const jid = `${targetNumber}@s.whatsapp.net`;
+            // Se o número não começa com 55 (BR), assumimos JID @lid (novo formato)
+            const suffix = targetNumber.startsWith("55") ? "s.whatsapp.net" : "lid";
+            const jid = `${targetNumber}@${suffix}`;
             console.log(`[AI Agent] Sending to JID: ${jid}`);
             const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
 
@@ -479,7 +481,10 @@ export async function sendMessage(userId: string, conversationId: string, text: 
     throw new Error("Unauthorized access to conversation");
   }
 
-  const jid = `${conversation.contactNumber}@s.whatsapp.net`;
+  const jidSuffix = conversation.contactNumber.startsWith("55")
+    ? "s.whatsapp.net"
+    : "lid";
+  const jid = `${conversation.contactNumber}@${jidSuffix}`;
   
   const sentMessage = await session.socket.sendMessage(jid, { text });
 
