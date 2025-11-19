@@ -248,8 +248,11 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  // Aceitar apenas mensagens de nÃºmeros individuais (@s.whatsapp.net)
-  if (!remoteJid.includes("@s.whatsapp.net")) {
+  // Aceitar apenas mensagens de números individuais (@s.whatsapp.net ou @lid)
+  const isIndividualJid =
+    remoteJid.includes("@s.whatsapp.net") || remoteJid.includes("@lid");
+
+  if (!isIndividualJid) {
     console.log(`Ignoring non-individual message from: ${remoteJid}`);
     return;
   }
@@ -760,3 +763,5 @@ export async function restoreAdminSessions(): Promise<void> {
     console.error("Error restoring admin sessions:", error);
   }
 }
+
+
