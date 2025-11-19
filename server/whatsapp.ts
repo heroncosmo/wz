@@ -388,21 +388,29 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     const isAgentDisabled = await storage.isAgentDisabledForConversation(conversation.id);
     
     if (!isAgentDisabled) {
+      const userId = session.userId; // Salva userId antes do setTimeout
       console.log(`Scheduling AI response for ${contactNumber} in 30 seconds...`);
       
       // Aguardar 30 segundos antes de responder
       setTimeout(async () => {
         try {
+          // IMPORTANTE: Busca sessão atualizada no momento do envio
+          const currentSession = sessions.get(userId);
+          if (!currentSession?.socket) {
+            console.log(`[AI Agent] Session not available for user ${userId}, skipping response`);
+            return;
+          }
+
           const conversationHistory = await storage.getMessagesByConversationId(conversation.id);
           const aiResponse = await generateAIResponse(
-            session.userId,
+            userId,
             conversationHistory,
             messageText
           );
 
-          if (aiResponse && session.socket) {
+          if (aiResponse) {
             const jid = `${contactNumber}@s.whatsapp.net`;
-            const sentMessage = await session.socket.sendMessage(jid, { text: aiResponse });
+            const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
 
             await storage.createMessage({
               conversationId: conversation.id,
@@ -419,13 +427,15 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
               lastMessageTime: new Date(),
             });
 
-            broadcastToUser(session.userId, {
+            broadcastToUser(userId, {
               type: "agent_response",
               conversationId: conversation.id,
               message: aiResponse,
             });
 
-            console.log(`AI Agent responded to ${contactNumber} after 30s: ${aiResponse}`);
+            console.log(`[AI Agent] Message SENT to WhatsApp ${contactNumber}: ${aiResponse}`);
+          } else {
+            console.log(`[AI Agent] No response generated (trigger phrase check or agent inactive)`);
           }
         } catch (error) {
           console.error("Error generating delayed AI response:", error);
