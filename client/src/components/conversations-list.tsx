@@ -9,6 +9,7 @@ import { ptBR } from "date-fns/locale";
 import type { Conversation } from "@shared/schema";
 import { useState, useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
+import { getAuthToken } from "@/lib/supabase";
 
 interface ConversationsListProps {
   connectionId?: string;
@@ -34,41 +35,66 @@ export function ConversationsList({
   useEffect(() => {
     if (!connectionId) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws?userId=${connectionId}`;
+    let websocket: WebSocket | null = null;
+    let cancelled = false;
 
-    const websocket = new WebSocket(wsUrl);
-
-    websocket.onopen = () => {
-      console.log("WebSocket conectado para conversas");
-    };
-
-    websocket.onmessage = (event) => {
+    const connectWebSocket = async () => {
       try {
-        const data = JSON.parse(event.data);
-        console.log("WebSocket message:", data);
+        const token = await getAuthToken();
 
-        // Atualizar lista de conversas quando receber nova mensagem
-        if (data.type === "new_message" || data.type === "agent_response") {
-          queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+        if (!token) {
+          console.error("Sem token de autenticação para WebSocket de conversas");
+          return;
         }
+
+        if (cancelled) return;
+
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(
+          token,
+        )}`;
+
+        websocket = new WebSocket(wsUrl);
+
+        websocket.onopen = () => {
+          console.log("WebSocket conectado para conversas");
+        };
+
+        websocket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("WebSocket message:", data);
+
+            // Atualizar lista de conversas quando receber nova mensagem
+            if (data.type === "new_message" || data.type === "agent_response") {
+              queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+            }
+          } catch (error) {
+            console.error("Erro ao processar mensagem WebSocket:", error);
+          }
+        };
+
+        websocket.onerror = (error) => {
+          console.error("Erro no WebSocket:", error);
+        };
+
+        websocket.onclose = () => {
+          console.log("WebSocket desconectado");
+        };
+
+        setWs(websocket);
       } catch (error) {
-        console.error("Erro ao processar mensagem WebSocket:", error);
+        console.error("Erro ao conectar WebSocket de conversas:", error);
       }
     };
 
-    websocket.onerror = (error) => {
-      console.error("Erro no WebSocket:", error);
-    };
-
-    websocket.onclose = () => {
-      console.log("WebSocket desconectado");
-    };
-
-    setWs(websocket);
+    connectWebSocket();
 
     return () => {
-      websocket.close();
+      cancelled = true;
+      if (websocket) {
+        websocket.close();
+      }
     };
   }, [connectionId]);
 
@@ -77,17 +103,17 @@ export function ConversationsList({
     // Ignorar conversas que parecem ser de grupos ou status
     // Grupos geralmente têm contactNumber muito longo ou com padrões específicos
     const number = conv.contactNumber;
-    
+
     // Filtro básico: número deve ter entre 10-15 dígitos (típico de números de telefone)
     if (number.length < 10 || number.length > 15) {
       return false;
     }
-    
+
     // Filtro adicional: evitar números que começam com padrões de grupo/broadcast
     if (number.startsWith("120") || number.startsWith("status")) {
       return false;
     }
-    
+
     return true;
   });
 
@@ -121,12 +147,16 @@ export function ConversationsList({
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
             <Smartphone className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="font-medium text-sm mb-2">WhatsApp não conectado</h3>
-            <p className="text-xs text-muted-foreground max-w-xs mb-3">Conecte seu WhatsApp para começar a receber conversas.</p>
+            <p className="text-xs text-muted-foreground max-w-xs mb-3">
+              Conecte seu WhatsApp para começar a receber conversas.
+            </p>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                const el = document.querySelector('[data-testid="button-nav-connection"]') as HTMLButtonElement;
+                const el = document.querySelector(
+                  '[data-testid="button-nav-connection"]',
+                ) as HTMLButtonElement;
                 el?.click();
               }}
               data-testid="button-minimal-connect-whatsapp-list"
@@ -178,10 +208,13 @@ export function ConversationsList({
                       </h3>
                       {conversation.lastMessageTime && (
                         <span className="text-xs text-muted-foreground flex-shrink-0">
-                          {formatDistanceToNow(new Date(conversation.lastMessageTime), {
-                            addSuffix: true,
-                            locale: ptBR,
-                          })}
+                          {formatDistanceToNow(
+                            new Date(conversation.lastMessageTime),
+                            {
+                              addSuffix: true,
+                              locale: ptBR,
+                            },
+                          )}
                         </span>
                       )}
                     </div>
@@ -209,3 +242,4 @@ export function ConversationsList({
     </div>
   );
 }
+
