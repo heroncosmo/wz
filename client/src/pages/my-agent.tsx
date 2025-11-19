@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Sparkles, TestTube, Save, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Bot, Sparkles, TestTube, Save, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Plus, X, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AiAgentConfig } from "@shared/schema";
@@ -17,6 +18,9 @@ export default function MyAgent() {
   const [isActive, setIsActive] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [testResponse, setTestResponse] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [triggerPhrases, setTriggerPhrases] = useState<string[]>([]);
+  const [newTriggerPhrase, setNewTriggerPhrase] = useState("");
 
   const { data: config, isLoading } = useQuery<AiAgentConfig | null>({
     queryKey: ["/api/agent/config"],
@@ -26,6 +30,7 @@ export default function MyAgent() {
     if (config) {
       setPrompt(config.prompt || "");
       setIsActive(config.isActive || false);
+      setTriggerPhrases(config.triggerPhrases || []);
     }
   }, [config]);
 
@@ -34,6 +39,7 @@ export default function MyAgent() {
       return await apiRequest("POST", "/api/agent/config", {
         prompt,
         isActive,
+        triggerPhrases,
       });
     },
     onSuccess: () => {
@@ -189,6 +195,101 @@ export default function MyAgent() {
               )}
             </Button>
           </div>
+        </Card>
+
+        <Card className="p-6 space-y-6">
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full flex items-center justify-between p-4 bg-muted/50 rounded-md hover:bg-muted transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Zap className="w-5 h-5 text-primary" />
+              <div className="text-left">
+                <h3 className="text-base font-semibold">Configuração Adicional</h3>
+                <p className="text-sm text-muted-foreground">
+                  Frases gatilho e regras avançadas
+                </p>
+              </div>
+            </div>
+            {showAdvanced ? (
+              <ChevronUp className="w-5 h-5" />
+            ) : (
+              <ChevronDown className="w-5 h-5" />
+            )}
+          </button>
+
+          {showAdvanced && (
+            <div className="space-y-4 pt-4 border-t">
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Frases Gatilho</Label>
+                <p className="text-sm text-muted-foreground">
+                  O agente SOMENTE responderá se a conversa contiver alguma destas frases. Deixe vazio para responder todas as conversas.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {triggerPhrases.map((phrase, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={phrase}
+                      onChange={(e) => {
+                        const updated = [...triggerPhrases];
+                        updated[index] = e.target.value;
+                        setTriggerPhrases(updated);
+                      }}
+                      placeholder="Ex: vim da campanha X"
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setTriggerPhrases(triggerPhrases.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                <div className="flex gap-2">
+                  <Input
+                    value={newTriggerPhrase}
+                    onChange={(e) => setNewTriggerPhrase(e.target.value)}
+                    placeholder="Adicionar nova frase gatilho..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newTriggerPhrase.trim()) {
+                        setTriggerPhrases([...triggerPhrases, newTriggerPhrase.trim()]);
+                        setNewTriggerPhrase("");
+                      }
+                    }}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => {
+                      if (newTriggerPhrase.trim()) {
+                        setTriggerPhrases([...triggerPhrases, newTriggerPhrase.trim()]);
+                        setNewTriggerPhrase("");
+                      }
+                    }}
+                    disabled={!newTriggerPhrase.trim()}
+                    variant="outline"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+
+              {triggerPhrases.length > 0 && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-900">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Atenção:</strong> O agente só responderá conversas que contenham pelo menos uma destas {triggerPhrases.length} frase{triggerPhrases.length > 1 ? "s" : ""}.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
 
         {config && (

@@ -38,6 +38,27 @@ export async function generateAIResponse(
       return null;
     }
 
+    // Validação de trigger phrases: se configuradas, verifica se alguma aparece na conversa
+    if (agentConfig.triggerPhrases && agentConfig.triggerPhrases.length > 0) {
+      // Concatena todas as mensagens da conversa (histórico + nova mensagem)
+      const allMessages = [
+        ...conversationHistory.map(m => m.text || ""),
+        newMessageText
+      ].join(" ").toLowerCase();
+
+      // Verifica se alguma trigger phrase está presente
+      const hasTrigger = agentConfig.triggerPhrases.some(phrase => 
+        allMessages.includes(phrase.toLowerCase())
+      );
+
+      if (!hasTrigger) {
+        console.log(`[AI Agent] Skipping response - no trigger phrase found for user ${userId}`);
+        return null;
+      }
+
+      console.log(`[AI Agent] Trigger phrase detected for user ${userId}, proceeding with response`);
+    }
+
     const messages: Array<{ role: string; content: string }> = [
       {
         role: "system",

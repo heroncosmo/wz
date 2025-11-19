@@ -80,6 +80,7 @@ export const aiAgentConfig = pgTable("ai_agent_config", {
   prompt: text("prompt").notNull(),
   isActive: boolean("is_active").default(false).notNull(),
   model: varchar("model", { length: 100 }).default("mistral-small-latest").notNull(),
+  triggerPhrases: text("trigger_phrases").array(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
