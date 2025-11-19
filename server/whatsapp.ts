@@ -389,7 +389,9 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     
     if (!isAgentDisabled) {
       const userId = session.userId; // Salva userId antes do setTimeout
-      console.log(`Scheduling AI response for ${contactNumber} in 30 seconds...`);
+      const conversationId = conversation.id; // Salva conversationId
+      const targetNumber = contactNumber; // CRÍTICO: Salva o número do contato para evitar closure incorreto
+      console.log(`Scheduling AI response for ${targetNumber} in 30 seconds...`);
       
       // Aguardar 30 segundos antes de responder
       setTimeout(async () => {
@@ -401,7 +403,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
             return;
           }
 
-          const conversationHistory = await storage.getMessagesByConversationId(conversation.id);
+          const conversationHistory = await storage.getMessagesByConversationId(conversationId);
           const aiResponse = await generateAIResponse(
             userId,
             conversationHistory,
@@ -409,11 +411,12 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
           );
 
           if (aiResponse) {
-            const jid = `${contactNumber}@s.whatsapp.net`;
+            const jid = `${targetNumber}@s.whatsapp.net`;
+            console.log(`[AI Agent] Sending to JID: ${jid}`);
             const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
 
             await storage.createMessage({
-              conversationId: conversation.id,
+              conversationId: conversationId,
               messageId: sentMessage?.key.id || Date.now().toString(),
               fromMe: true,
               text: aiResponse,
@@ -422,18 +425,18 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
               isFromAgent: true,
             });
 
-            await storage.updateConversation(conversation.id, {
+            await storage.updateConversation(conversationId, {
               lastMessageText: aiResponse,
               lastMessageTime: new Date(),
             });
 
             broadcastToUser(userId, {
               type: "agent_response",
-              conversationId: conversation.id,
+              conversationId: conversationId,
               message: aiResponse,
             });
 
-            console.log(`[AI Agent] Message SENT to WhatsApp ${contactNumber}: ${aiResponse}`);
+            console.log(`[AI Agent] Message SENT to WhatsApp ${targetNumber}: ${aiResponse}`);
           } else {
             console.log(`[AI Agent] No response generated (trigger phrase check or agent inactive)`);
           }
