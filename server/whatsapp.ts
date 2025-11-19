@@ -259,22 +259,21 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  // SOLUÇÃO BAILEYS 2025: Usar jidDecode para extrair número real limpo
-  // jidDecode automaticamente separa: user (número), server (s.whatsapp.net/lid), device (:20)
-  const decoded = jidDecode(remoteJid);
+  // CORREÇÃO FINAL: Extrair número completo antes do @ (como no backup que funcionava)
+  // O jidDecode estava causando problemas - voltar ao método simples que funcionava
+  const jidParts = remoteJid.split("@");
+  let contactNumber = jidParts[0]; // Número COMPLETO (pode ter :device, mas tudo bem)
+  let jidSuffix = jidParts[1] || "s.whatsapp.net"; // s.whatsapp.net ou lid
   
-  if (!decoded) {
-    console.log(`[WhatsApp] Could not decode JID: ${remoteJid}`);
-    return;
-  }
+  // Para exibição limpa no CRM, remover :device se existir
+  const displayNumber = contactNumber.includes(":") 
+    ? contactNumber.split(":")[0] 
+    : contactNumber;
   
-  let contactNumber = decoded.user; // Número LIMPO sem :device
-  let jidSuffix = decoded.server || "s.whatsapp.net"; // s.whatsapp.net ou lid
-  
-  console.log(`[WhatsApp] Decoded JID: ${remoteJid}`);
-  console.log(`[WhatsApp] → User (clean number): ${contactNumber}`);
+  console.log(`[WhatsApp] Received from remoteJid: ${remoteJid}`);
+  console.log(`[WhatsApp] → Contact number (full): ${contactNumber}`);
+  console.log(`[WhatsApp] → Display number (clean): ${displayNumber}`);
   console.log(`[WhatsApp] → Server: ${jidSuffix}`);
-  console.log(`[WhatsApp] → Device: ${decoded.device || 'none'}`);
   
   // Ignorar mensagens do próprio número conectado
   if (session.phoneNumber && contactNumber === session.phoneNumber) {
@@ -356,16 +355,17 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return; // NÃ£o processar mensagens nÃ£o suportadas
   }
 
+  // Buscar conversa pelo número LIMPO (displayNumber) para evitar duplicações
   let conversation = await storage.getConversationByContactNumber(
     session.connectionId,
-    contactNumber
+    displayNumber
   );
 
   if (!conversation) {
     conversation = await storage.createConversation({
       connectionId: session.connectionId,
-      contactNumber,
-      remoteJid, // CRÍTICO: Salvar JID completo original!
+      contactNumber: displayNumber, // Número LIMPO para exibição no CRM
+      remoteJid, // CRÍTICO: Salvar JID completo original para envio!
       jidSuffix, // Salvar o suffix também (backup/referência)
       contactName: waMessage.pushName,
       lastMessageText: messageText,
