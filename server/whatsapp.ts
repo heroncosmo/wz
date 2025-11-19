@@ -268,8 +268,8 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
   
-  const contactNumber = decoded.user; // Número LIMPO sem :device
-  const jidSuffix = decoded.server; // s.whatsapp.net ou lid
+  let contactNumber = decoded.user; // Número LIMPO sem :device
+  let jidSuffix = decoded.server || "s.whatsapp.net"; // s.whatsapp.net ou lid
   
   console.log(`[WhatsApp] Decoded JID: ${remoteJid}`);
   console.log(`[WhatsApp] → User (clean number): ${contactNumber}`);

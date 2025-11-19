@@ -119,9 +119,13 @@ export function ConversationsList({
 
   const filteredConversations = individualConversations.filter((conv) => {
     const searchLower = searchQuery.toLowerCase();
+    const normalizedNumber =
+      (conv.remoteJid || `${conv.contactNumber}@s.whatsapp.net`)
+        .split("@")[0]
+        .split(":")[0];
     return (
       conv.contactName?.toLowerCase().includes(searchLower) ||
-      conv.contactNumber.includes(searchLower) ||
+      normalizedNumber.includes(searchLower) ||
       conv.lastMessageText?.toLowerCase().includes(searchLower)
     );
   });
@@ -198,13 +202,22 @@ export function ConversationsList({
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                       {conversation.contactName
                         ? conversation.contactName.charAt(0).toUpperCase()
-                        : conversation.contactNumber.charAt(0)}
+                        : (
+                            (conversation.remoteJid ||
+                              `${conversation.contactNumber}@s.whatsapp.net`)
+                              .split("@")[0]
+                              .split(":")[0] || "?"
+                          ).charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h3 className="font-semibold text-sm truncate">
-                        {conversation.contactName || conversation.contactNumber}
+                        {conversation.contactName ||
+                          (conversation.remoteJid ||
+                            `${conversation.contactNumber}@s.whatsapp.net`)
+                            .split("@")[0]
+                            .split(":")[0]}
                       </h3>
                       {conversation.lastMessageTime && (
                         <span className="text-xs text-muted-foreground flex-shrink-0">
@@ -242,4 +255,3 @@ export function ConversationsList({
     </div>
   );
 }
-
