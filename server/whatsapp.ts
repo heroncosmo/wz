@@ -1,4 +1,4 @@
-import makeWASocket, {
+﻿import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   WASocket,
@@ -101,7 +101,7 @@ function broadcastToAdmin(adminId: string, data: any) {
   });
 }
 
-// Função para limpar arquivos de autenticação
+// FunÃ§Ã£o para limpar arquivos de autenticaÃ§Ã£o
 async function clearAuthFiles(authPath: string): Promise<void> {
   try {
     const exists = await fs.access(authPath).then(() => true).catch(() => false);
@@ -116,7 +116,7 @@ async function clearAuthFiles(authPath: string): Promise<void> {
 
 export async function connectWhatsApp(userId: string): Promise<void> {
   try {
-    // Verificar se já existe uma sessão ativa
+    // Verificar se jÃ¡ existe uma sessÃ£o ativa
     const existingSession = sessions.get(userId);
     if (existingSession?.socket) {
       console.log(`User ${userId} already has an active session, using existing one`);
@@ -164,7 +164,7 @@ export async function connectWhatsApp(userId: string): Promise<void> {
         }
       }
 
-      // Estado "connecting" - quando o QR Code foi escaneado e está conectando
+      // Estado "connecting" - quando o QR Code foi escaneado e estÃ¡ conectando
       if (conn === "connecting") {
         console.log(`User ${userId} is connecting...`);
         broadcastToUser(userId, { type: "connecting" });
@@ -173,7 +173,7 @@ export async function connectWhatsApp(userId: string): Promise<void> {
       if (conn === "close") {
         const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
 
-        // Sempre deletar a sessão primeiro
+        // Sempre deletar a sessÃ£o primeiro
         sessions.delete(userId);
 
         // Atualizar banco de dados
@@ -215,7 +215,7 @@ export async function connectWhatsApp(userId: string): Promise<void> {
       // Ignorar mensagens enviadas por mim
       if (!message.message || message.key.fromMe) return;
       
-      // Verificação extra: ignorar se o remoteJid é o próprio número
+      // VerificaÃ§Ã£o extra: ignorar se o remoteJid Ã© o prÃ³prio nÃºmero
       if (message.key.remoteJid && session.phoneNumber) {
         const remoteNumber = message.key.remoteJid.split("@")[0];
         if (remoteNumber === session.phoneNumber) {
@@ -242,13 +242,13 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
   if (!remoteJid) return;
 
   // Filtrar grupos e status - aceitar apenas conversas individuais
-  // @g.us = grupos, @broadcast = status/listas de transmissão
+  // @g.us = grupos, @broadcast = status/listas de transmissÃ£o
   if (remoteJid.includes("@g.us") || remoteJid.includes("@broadcast")) {
     console.log(`Ignoring group/status message from: ${remoteJid}`);
     return;
   }
 
-  // Aceitar apenas mensagens de n�meros individuais (@s.whatsapp.net ou @lid)
+  // Aceitar apenas mensagens de números individuais (@s.whatsapp.net ou @lid)
   const isIndividualJid =
     remoteJid.includes("@s.whatsapp.net") || remoteJid.includes("@lid");
 
@@ -259,7 +259,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
 
   const contactNumber = remoteJid.split("@")[0];
   
-  // Ignorar mensagens do próprio número conectado
+  // Ignorar mensagens do prÃ³prio nÃºmero conectado
   if (session.phoneNumber && contactNumber === session.phoneNumber) {
     console.log(`Ignoring message from own number: ${contactNumber}`);
     return;
@@ -286,7 +286,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     mediaType = "image";
     mediaMimeType = msg.imageMessage.mimetype || "image/jpeg";
     mediaCaption = msg.imageMessage.caption || null;
-    messageText = mediaCaption || "📷 Imagem";
+    messageText = mediaCaption || "ðŸ“· Imagem";
     
     try {
       const buffer = await downloadMediaMessage(waMessage, "buffer", {});
@@ -301,7 +301,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     mediaType = "audio";
     mediaMimeType = msg.audioMessage.mimetype || "audio/ogg; codecs=opus";
     mediaDuration = msg.audioMessage.seconds || null;
-    messageText = "🎵 Áudio";
+    messageText = "ðŸŽµ Ãudio";
     
     try {
       const buffer = await downloadMediaMessage(waMessage, "buffer", {});
@@ -317,7 +317,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     mediaMimeType = msg.videoMessage.mimetype || "video/mp4";
     mediaCaption = msg.videoMessage.caption || null;
     mediaDuration = msg.videoMessage.seconds || null;
-    messageText = mediaCaption || "🎥 Vídeo";
+    messageText = mediaCaption || "ðŸŽ¥ VÃ­deo";
     
     try {
       const buffer = await downloadMediaMessage(waMessage, "buffer", {});
@@ -331,12 +331,12 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
   else if (msg?.documentMessage) {
     mediaType = "document";
     mediaMimeType = msg.documentMessage.mimetype || "application/octet-stream";
-    messageText = `📄 ${msg.documentMessage.fileName || "Documento"}`;
+    messageText = `ðŸ“„ ${msg.documentMessage.fileName || "Documento"}`;
   }
-  // Ignorar mensagens de tipos não suportados (reações, status, etc)
+  // Ignorar mensagens de tipos nÃ£o suportados (reaÃ§Ãµes, status, etc)
   else {
     console.log(`Ignoring unsupported message type from ${contactNumber}:`, Object.keys(msg || {}));
-    return; // Não processar mensagens não suportadas
+    return; // NÃ£o processar mensagens nÃ£o suportadas
   }
 
   let conversation = await storage.getConversationByContactNumber(
@@ -494,7 +494,7 @@ export async function disconnectWhatsApp(userId: string): Promise<void> {
     });
   }
 
-  // Limpar arquivos de autenticação para permitir nova conexão
+  // Limpar arquivos de autenticaÃ§Ã£o para permitir nova conexÃ£o
   const userAuthPath = path.join(SESSIONS_BASE, `auth_${userId}`);
   await clearAuthFiles(userAuthPath);
 
@@ -511,7 +511,7 @@ export function getAdminSession(adminId: string): AdminWhatsAppSession | undefin
 
 export async function connectAdminWhatsApp(adminId: string): Promise<void> {
   try {
-    // Verificar se já existe uma sessão ativa
+    // Verificar se jÃ¡ existe uma sessÃ£o ativa
     const existingSession = adminSessions.get(adminId);
     if (existingSession?.socket) {
       console.log(`Admin ${adminId} already has an active session, using existing one`);
@@ -554,7 +554,7 @@ export async function connectAdminWhatsApp(adminId: string): Promise<void> {
         broadcastToAdmin(adminId, { type: "qr", qr: qrCodeDataUrl });
       }
 
-      // Estado "connecting" - quando o QR Code foi escaneado e está conectando
+      // Estado "connecting" - quando o QR Code foi escaneado e estÃ¡ conectando
       if (connStatus === "connecting") {
         console.log(`Admin ${adminId} is connecting...`);
         broadcastToAdmin(adminId, { type: "connecting" });
@@ -580,7 +580,7 @@ export async function connectAdminWhatsApp(adminId: string): Promise<void> {
       if (connStatus === "close") {
         const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
 
-        // Sempre deletar a sessão primeiro
+        // Sempre deletar a sessÃ£o primeiro
         adminSessions.delete(adminId);
 
         // Atualizar banco de dados
@@ -625,7 +625,7 @@ export async function disconnectAdminWhatsApp(adminId: string): Promise<void> {
     });
   }
 
-  // Limpar arquivos de autenticação para permitir nova conexão
+  // Limpar arquivos de autenticaÃ§Ã£o para permitir nova conexÃ£o
   const adminAuthPath = path.join(SESSIONS_BASE, `auth_admin_${adminId}`);
   await clearAuthFiles(adminAuthPath);
 
@@ -636,7 +636,7 @@ export async function sendWelcomeMessage(userPhone: string): Promise<void> {
   try {
     console.log(`[WELCOME] Iniciando envio de mensagem de boas-vindas para ${userPhone}`);
 
-    // Obter configuração de mensagem de boas-vindas
+    // Obter configuraÃ§Ã£o de mensagem de boas-vindas
     const enabledConfig = await storage.getSystemConfig('welcome_message_enabled');
     const messageConfig = await storage.getSystemConfig('welcome_message_text');
 
@@ -646,18 +646,18 @@ export async function sendWelcomeMessage(userPhone: string): Promise<void> {
     }
 
     if (!messageConfig || !messageConfig.valor) {
-      console.log('[WELCOME] Mensagem de boas-vindas não configurada');
+      console.log('[WELCOME] Mensagem de boas-vindas nÃ£o configurada');
       return;
     }
 
-    console.log('[WELCOME] Configuração encontrada, procurando admin...');
+    console.log('[WELCOME] ConfiguraÃ§Ã£o encontrada, procurando admin...');
 
-    // Obter admin (assumindo que há apenas um admin owner)
+    // Obter admin (assumindo que hÃ¡ apenas um admin owner)
     const allAdmins = await storage.getAllAdmins();
     const adminUser = allAdmins.find(a => a.role === 'owner');
 
     if (!adminUser) {
-      console.log('[WELCOME] Admin não encontrado');
+      console.log('[WELCOME] Admin nÃ£o encontrado');
       return;
     }
 
@@ -667,36 +667,36 @@ export async function sendWelcomeMessage(userPhone: string): Promise<void> {
     const adminConnection = await storage.getAdminWhatsappConnection(adminUser.id);
 
     if (!adminConnection || !adminConnection.isConnected) {
-      console.log('[WELCOME] Admin WhatsApp não conectado');
+      console.log('[WELCOME] Admin WhatsApp nÃ£o conectado');
       return;
     }
 
-    console.log('[WELCOME] Admin WhatsApp conectado, procurando sessão...');
+    console.log('[WELCOME] Admin WhatsApp conectado, procurando sessÃ£o...');
 
     let adminSession = adminSessions.get(adminUser.id);
 
-    // Se a sessão não existe, tentar restaurá-la
+    // Se a sessÃ£o nÃ£o existe, tentar restaurÃ¡-la
     if (!adminSession || !adminSession.socket) {
-      console.log('[WELCOME] Admin WhatsApp session não encontrada, tentando restaurar...');
+      console.log('[WELCOME] Admin WhatsApp session nÃ£o encontrada, tentando restaurar...');
       try {
         await connectAdminWhatsApp(adminUser.id);
         adminSession = adminSessions.get(adminUser.id);
 
         if (!adminSession || !adminSession.socket) {
-          console.log('[WELCOME] Falha ao restaurar sessão do admin');
+          console.log('[WELCOME] Falha ao restaurar sessÃ£o do admin');
           return;
         }
 
-        console.log('[WELCOME] Sessão do admin restaurada com sucesso');
+        console.log('[WELCOME] SessÃ£o do admin restaurada com sucesso');
       } catch (restoreError) {
-        console.error('[WELCOME] Erro ao restaurar sessão do admin:', restoreError);
+        console.error('[WELCOME] Erro ao restaurar sessÃ£o do admin:', restoreError);
         return;
       }
     }
 
-    console.log('[WELCOME] Sessão encontrada, enviando mensagem...');
+    console.log('[WELCOME] SessÃ£o encontrada, enviando mensagem...');
 
-    // Formatar número para envio (remover + e adicionar @s.whatsapp.net)
+    // Formatar nÃºmero para envio (remover + e adicionar @s.whatsapp.net)
     const formattedNumber = userPhone.replace('+', '') + '@s.whatsapp.net';
 
     // Enviar mensagem
@@ -704,10 +704,10 @@ export async function sendWelcomeMessage(userPhone: string): Promise<void> {
       text: messageConfig.valor,
     });
 
-    console.log(`[WELCOME] ✅ Mensagem de boas-vindas enviada com sucesso para ${userPhone}`);
+    console.log(`[WELCOME] âœ… Mensagem de boas-vindas enviada com sucesso para ${userPhone}`);
   } catch (error) {
-    console.error('[WELCOME] ❌ Erro ao enviar mensagem de boas-vindas:', error);
-    // Não lança erro para não bloquear o cadastro
+    console.error('[WELCOME] âŒ Erro ao enviar mensagem de boas-vindas:', error);
+    // NÃ£o lanÃ§a erro para nÃ£o bloquear o cadastro
   }
 }
 
@@ -748,7 +748,7 @@ export async function restoreAdminSessions(): Promise<void> {
         console.log(`Restoring admin WhatsApp session for admin ${admin.id}...`);
         try {
           await connectAdminWhatsApp(admin.id);
-          console.log(`✅ Admin WhatsApp session restored for ${admin.id}`);
+          console.log(`âœ… Admin WhatsApp session restored for ${admin.id}`);
         } catch (error) {
           console.error(`Failed to restore admin session for ${admin.id}:`, error);
           await storage.updateAdminWhatsappConnection(admin.id, {
@@ -763,5 +763,6 @@ export async function restoreAdminSessions(): Promise<void> {
     console.error("Error restoring admin sessions:", error);
   }
 }
+
 
 
