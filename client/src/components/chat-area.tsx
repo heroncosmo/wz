@@ -115,6 +115,12 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
     }
   }, [conversationId]);
 
+  // Número normalizado para exibição (usa remoteJid quando disponível)
+  const displayNumber =
+    conversation?.remoteJid
+      ? conversation.remoteJid.split("@")[0].split(":")[0]
+      : conversation?.contactNumber || "";
+
   // Minimalist onboarding: Agent CTA should have priority on the right side
   if (!conversationId && (!agentConfig || !(agentConfig as any).isActive)) {
     return (
@@ -242,15 +248,15 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
           <AvatarFallback className="bg-primary/10 text-primary font-semibold">
             {conversation?.contactName
               ? conversation.contactName.charAt(0).toUpperCase()
-              : conversation?.contactNumber.charAt(0)}
+              : (displayNumber || "?").charAt(0)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold truncate" data-testid="text-contact-name">
-            {conversation?.contactName || conversation?.contactNumber}
+            {conversation?.contactName || displayNumber}
           </h3>
           <p className="text-xs text-muted-foreground font-mono">
-            {conversation?.contactNumber}
+            {displayNumber}
           </p>
         </div>
         <div className="flex items-center gap-3">
