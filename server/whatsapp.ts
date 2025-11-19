@@ -259,21 +259,10 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  // CORREÇÃO FINAL: Extrair número completo antes do @ (como no backup que funcionava)
-  // O jidDecode estava causando problemas - voltar ao método simples que funcionava
-  const jidParts = remoteJid.split("@");
-  let contactNumber = jidParts[0]; // Número COMPLETO (pode ter :device, mas tudo bem)
-  let jidSuffix = jidParts[1] || "s.whatsapp.net"; // s.whatsapp.net ou lid
+  // EXATAMENTE como no backup que funcionava - SIMPLES!
+  const contactNumber = remoteJid.split("@")[0];
   
-  // Para exibição limpa no CRM, remover :device se existir
-  const displayNumber = contactNumber.includes(":") 
-    ? contactNumber.split(":")[0] 
-    : contactNumber;
-  
-  console.log(`[WhatsApp] Received from remoteJid: ${remoteJid}`);
-  console.log(`[WhatsApp] → Contact number (full): ${contactNumber}`);
-  console.log(`[WhatsApp] → Display number (clean): ${displayNumber}`);
-  console.log(`[WhatsApp] → Server: ${jidSuffix}`);
+  console.log(`[WhatsApp] Message from: ${contactNumber}`);
   
   // Ignorar mensagens do próprio número conectado
   if (session.phoneNumber && contactNumber === session.phoneNumber) {
@@ -355,18 +344,16 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return; // NÃ£o processar mensagens nÃ£o suportadas
   }
 
-  // Buscar conversa pelo número LIMPO (displayNumber) para evitar duplicações
+  // EXATAMENTE como no backup - buscar/criar/atualizar com contactNumber
   let conversation = await storage.getConversationByContactNumber(
     session.connectionId,
-    displayNumber
+    contactNumber
   );
 
   if (!conversation) {
     conversation = await storage.createConversation({
       connectionId: session.connectionId,
-      contactNumber: displayNumber, // Número LIMPO para exibição no CRM
-      remoteJid, // CRÍTICO: Salvar JID completo original para envio!
-      jidSuffix, // Salvar o suffix também (backup/referência)
+      contactNumber,
       contactName: waMessage.pushName,
       lastMessageText: messageText,
       lastMessageTime: new Date(),
@@ -374,8 +361,6 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     });
   } else {
     await storage.updateConversation(conversation.id, {
-      remoteJid, // Atualizar JID (pode mudar entre @lid e @s.whatsapp.net)
-      jidSuffix, // Atualizar suffix também
       lastMessageText: messageText,
       lastMessageTime: new Date(),
       unreadCount: (conversation.unreadCount || 0) + 1,
@@ -432,16 +417,9 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
           );
 
           if (aiResponse) {
-            // CRÍTICO: Usar remoteJid ORIGINAL do banco - NÃO reconstruir!
-            const conversationData = await storage.getConversation(conversationId);
-            const jid = conversationData?.remoteJid;
-            
-            if (!jid) {
-              console.error(`[AI Agent] No remoteJid found for conversation ${conversationId}`);
-              return;
-            }
-            
-            console.log(`[AI Agent] Sending to original JID: ${jid}`);
+            // EXATAMENTE como no backup - simples e direto!
+            const jid = `${targetNumber}@s.whatsapp.net`;
+            console.log(`[AI Agent] Sending to: ${jid}`);
             const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
 
             await storage.createMessage({
@@ -496,10 +474,8 @@ export async function sendMessage(userId: string, conversationId: string, text: 
     throw new Error("Unauthorized access to conversation");
   }
 
-  const jidSuffix = conversation.contactNumber.startsWith("55")
-    ? "s.whatsapp.net"
-    : "lid";
-  const jid = `${conversation.contactNumber}@${jidSuffix}`;
+  // EXATAMENTE como no backup - simples!
+  const jid = `${conversation.contactNumber}@s.whatsapp.net`;
   
   const sentMessage = await session.socket.sendMessage(jid, { text });
 
