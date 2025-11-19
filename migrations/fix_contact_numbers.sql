@@ -1,17 +1,17 @@
--- Migration: Fix contact numbers that contain :XX@lid metadata
+-- Migration: Delete conversations with incorrect contact numbers (containing :XX metadata)
 -- Date: 2025-11-19
--- Description: Removes metadata from contact_number field (e.g. "254635809968349:20" -> "254635809968349")
+-- Description: Removes conversations saved with :XX metadata so new messages create fresh conversations with correct numbers
 
--- Update conversations table to remove :XX metadata from contact numbers
-UPDATE conversations
-SET contact_number = split_part(contact_number, ':', 1)
+-- Delete conversations that have :XX metadata in contact_number
+-- These are incorrect and will be recreated automatically when the contact sends a new message
+DELETE FROM conversations
 WHERE contact_number LIKE '%:%';
 
 -- Log the changes
 DO $$
 DECLARE
-  updated_count INTEGER;
+  deleted_count INTEGER;
 BEGIN
-  GET DIAGNOSTICS updated_count = ROW_COUNT;
-  RAISE NOTICE 'Fixed % conversation(s) with incorrect contact numbers', updated_count;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RAISE NOTICE 'Deleted % conversation(s) with incorrect contact numbers. They will be recreated automatically with correct numbers when contacts send new messages.', deleted_count;
 END $$;
