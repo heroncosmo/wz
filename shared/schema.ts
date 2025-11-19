@@ -48,6 +48,9 @@ export const conversations = pgTable("conversations", {
     .notNull()
     .references(() => whatsappConnections.id, { onDelete: "cascade" }),
   contactNumber: varchar("contact_number").notNull(),
+  // JID completo original do WhatsApp (ex: 5517912345678@s.whatsapp.net ou 254635809968349:20@lid)
+  // SEMPRE usar este campo ao enviar mensagens de volta!
+  remoteJid: text("remote_jid"),
   // Sufixo/domínio do JID usado para enviar mensagens (ex: s.whatsapp.net, lid)
   jidSuffix: varchar("jid_suffix", { length: 32 }).default("s.whatsapp.net"),
   contactName: varchar("contact_name"),

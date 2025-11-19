@@ -361,7 +361,8 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     conversation = await storage.createConversation({
       connectionId: session.connectionId,
       contactNumber,
-      jidSuffix, // Salvar o suffix original para reconstruir o JID depois
+      remoteJid, // CRÍTICO: Salvar JID completo original!
+      jidSuffix, // Salvar o suffix também (backup/referência)
       contactName: waMessage.pushName,
       lastMessageText: messageText,
       lastMessageTime: new Date(),
@@ -369,6 +370,8 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     });
   } else {
     await storage.updateConversation(conversation.id, {
+      remoteJid, // Atualizar JID (pode mudar entre @lid e @s.whatsapp.net)
+      jidSuffix, // Atualizar suffix também
       lastMessageText: messageText,
       lastMessageTime: new Date(),
       unreadCount: (conversation.unreadCount || 0) + 1,
@@ -425,11 +428,16 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
           );
 
           if (aiResponse) {
-            // CORREÇÃO: Buscar o suffix correto do banco de dados
+            // CRÍTICO: Usar remoteJid ORIGINAL do banco - NÃO reconstruir!
             const conversationData = await storage.getConversation(conversationId);
-            const suffix = conversationData?.jidSuffix || "s.whatsapp.net";
-            const jid = `${targetNumber}@${suffix}`;
-            console.log(`[AI Agent] Sending to JID: ${jid} (suffix from DB: ${suffix})`);
+            const jid = conversationData?.remoteJid;
+            
+            if (!jid) {
+              console.error(`[AI Agent] No remoteJid found for conversation ${conversationId}`);
+              return;
+            }
+            
+            console.log(`[AI Agent] Sending to original JID: ${jid}`);
             const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
 
             await storage.createMessage({
