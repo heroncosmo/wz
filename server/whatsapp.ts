@@ -257,19 +257,20 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  // CORREÇÃO: Extrair número correto do JID
-  // Para @lid (WhatsApp Business/Channels), o formato pode ser diferente
-  // Precisamos garantir que extraímos o número real do telefone
-  let contactNumber = remoteJid.split("@")[0];
+  // CORREÇÃO: Extrair número correto do JID E o suffix para reconstruir depois
+  // Formato: número@suffix (ex: 5517912345678@s.whatsapp.net ou 254635809968349:20@lid)
+  const jidParts = remoteJid.split("@");
+  let contactNumber = jidParts[0];
+  const jidSuffix = jidParts[1] || "s.whatsapp.net"; // suffix original (s.whatsapp.net ou lid)
   
-  // Se for @lid, pode ter formato diferente - vamos normalizar
-  // Exemplo: 254635809968349:20@lid -> queremos apenas os dígitos do telefone
-  if (remoteJid.includes("@lid")) {
-    // Remove tudo após : se existir
+  // Se for @lid, pode ter metadata após ":" - vamos remover
+  // Exemplo: 254635809968349:20@lid -> queremos apenas 254635809968349
+  if (remoteJid.includes("@lid") && contactNumber.includes(":")) {
     contactNumber = contactNumber.split(":")[0];
   }
   
-  console.log(`[WhatsApp] Processing message from remoteJid: ${remoteJid}, extracted number: ${contactNumber}`);
+  console.log(`[WhatsApp] Processing message from remoteJid: ${remoteJid}`);
+  console.log(`[WhatsApp] Extracted number: ${contactNumber}, suffix: ${jidSuffix}`);
   
   // Ignorar mensagens do próprio número conectado
   if (session.phoneNumber && contactNumber === session.phoneNumber) {
@@ -360,6 +361,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     conversation = await storage.createConversation({
       connectionId: session.connectionId,
       contactNumber,
+      jidSuffix, // Salvar o suffix original para reconstruir o JID depois
       contactName: waMessage.pushName,
       lastMessageText: messageText,
       lastMessageTime: new Date(),
@@ -423,10 +425,11 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
           );
 
           if (aiResponse) {
-            // Se o número não começa com 55 (BR), assumimos JID @lid (novo formato)
-            const suffix = targetNumber.startsWith("55") ? "s.whatsapp.net" : "lid";
+            // CORREÇÃO: Buscar o suffix correto do banco de dados
+            const conversationData = await storage.getConversation(conversationId);
+            const suffix = conversationData?.jidSuffix || "s.whatsapp.net";
             const jid = `${targetNumber}@${suffix}`;
-            console.log(`[AI Agent] Sending to JID: ${jid}`);
+            console.log(`[AI Agent] Sending to JID: ${jid} (suffix from DB: ${suffix})`);
             const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
 
             await storage.createMessage({
