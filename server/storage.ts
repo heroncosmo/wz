@@ -34,6 +34,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { transcribeAudioWithMistral } from "./mistralClient";
 
 export interface IStorage {
   // User operations (IMPORTANT: mandatory for Replit Auth)
@@ -231,9 +232,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMessage(messageData: InsertMessage): Promise<Message> {
+    const data: InsertMessage = { ...messageData };
+
+    // Transcrição automática para mensagens de áudio, independente do agente estar ativo ou não.
+    if (data.mediaType === "audio" && data.mediaUrl) {
+      try {
+        const base64Part = data.mediaUrl.split(",")[1];
+        if (base64Part) {
+          const audioBuffer = Buffer.from(base64Part, "base64");
+
+          // Descobre o usuário dono da conversa para permitir modelos
+          // configuráveis no futuro (via env).
+          let transcriptionModel: string | undefined;
+
+          const [conversation] = await db
+            .select()
+            .from(conversations)
+            .where(eq(conversations.id, data.conversationId));
+
+          if (conversation) {
+            const [connection] = await db
+              .select()
+              .from(whatsappConnections)
+              .where(eq(whatsappConnections.id, conversation.connectionId));
+
+            if (connection?.userId) {
+              // Hoje usamos apenas o modelo padrão configurado em mistralClient,
+              // mas deixamos o campo para futura customização por usuário.
+              transcriptionModel = process.env.MISTRAL_TRANSCRIPTION_MODEL || undefined;
+            }
+          }
+
+          const transcription = await transcribeAudioWithMistral(audioBuffer, {
+            fileName: "whatsapp-audio.ogg",
+            model: transcriptionModel,
+          });
+
+          if (transcription && transcription.length > 0) {
+            data.text = transcription;
+          }
+        }
+      } catch (error) {
+        console.error("Error transcribing audio message in storage.createMessage:", error);
+      }
+    }
+
     const [message] = await db
       .insert(messages)
-      .values(messageData)
+      .values(data)
       .returning();
     return message;
   }

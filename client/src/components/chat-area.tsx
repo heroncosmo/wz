@@ -340,11 +340,18 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
                     alt="Imagem do WhatsApp"
                   />
                 ) : message.mediaType === "audio" && message.mediaUrl ? (
-                  <MessageAudio 
-                    src={message.mediaUrl}
-                    duration={message.mediaDuration}
-                    fromMe={message.fromMe}
-                  />
+                  <div className="space-y-2">
+                    <MessageAudio 
+                      src={message.mediaUrl}
+                      duration={message.mediaDuration}
+                      fromMe={message.fromMe}
+                    />
+                    {message.text && (
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {message.text}
+                      </p>
+                    )}
+                  </div>
                 ) : message.mediaType === "video" && message.mediaUrl ? (
                   <div className="space-y-2">
                     <video 

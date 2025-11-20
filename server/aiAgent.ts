@@ -1,30 +1,6 @@
-import { Mistral } from "@mistralai/mistralai";
 import { storage } from "./storage";
 import type { Message } from "@shared/schema";
-import { db } from "./db";
-import { systemConfig } from "@shared/schema";
-import { eq } from "drizzle-orm";
-
-async function getMistralClient(): Promise<Mistral> {
-  try {
-    const config = await db
-      .select()
-      .from(systemConfig)
-      .where(eq(systemConfig.chave, "mistral_api_key"))
-      .limit(1);
-
-    const apiKey = config[0]?.valor || process.env.MISTRAL_API_KEY || "";
-    
-    if (!apiKey) {
-      throw new Error("Mistral API Key not configured");
-    }
-
-    return new Mistral({ apiKey });
-  } catch (error) {
-    console.error("Error getting Mistral client:", error);
-    throw error;
-  }
-}
+import { getMistralClient } from "./mistralClient";
 
 export async function generateAIResponse(
   userId: string,

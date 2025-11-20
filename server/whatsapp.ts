@@ -5,7 +5,6 @@
   proto,
   WAMessage,
   downloadMediaMessage,
-  jidDecode,
   jidNormalizedUser,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
@@ -259,10 +258,13 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  // EXATAMENTE como no backup que funcionava - SIMPLES!
-  const contactNumber = remoteJid.split("@")[0];
+  // BAILEYS 2025 OFICIAL: jidNormalizedUser() retorna JID limpo sem :device
+  const normalizedJid = jidNormalizedUser(remoteJid);
+  const contactNumber = normalizedJid.split("@")[0]; // Número LIMPO!
   
-  console.log(`[WhatsApp] Message from: ${contactNumber}`);
+  console.log(`[WhatsApp] Original JID: ${remoteJid}`);
+  console.log(`[WhatsApp] Normalized JID: ${normalizedJid}`);
+  console.log(`[WhatsApp] Clean number: ${contactNumber}`);
   
   // Ignorar mensagens do próprio número conectado
   if (session.phoneNumber && contactNumber === session.phoneNumber) {
@@ -353,7 +355,8 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
   if (!conversation) {
     conversation = await storage.createConversation({
       connectionId: session.connectionId,
-      contactNumber,
+      contactNumber, // Número LIMPO para exibir no CRM
+      remoteJid, // JID original COMPLETO para enviar mensagens
       contactName: waMessage.pushName,
       lastMessageText: messageText,
       lastMessageTime: new Date(),
@@ -361,6 +364,7 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     });
   } else {
     await storage.updateConversation(conversation.id, {
+      remoteJid, // Atualizar JID original (pode mudar)
       lastMessageText: messageText,
       lastMessageTime: new Date(),
       unreadCount: (conversation.unreadCount || 0) + 1,
@@ -368,25 +372,37 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     });
   }
 
-  await storage.createMessage({
-    conversationId: conversation.id,
-    messageId: waMessage.key.id!,
-    fromMe: false,
-    text: messageText,
+    const savedMessage = await storage.createMessage({
+      conversationId: conversation.id,
+      messageId: waMessage.key.id!,
+      fromMe: false,
+      text: messageText,
     timestamp: new Date(Number(waMessage.messageTimestamp) * 1000),
     isFromAgent: false,
     mediaType,
-    mediaUrl,
-    mediaMimeType,
-    mediaDuration,
-    mediaCaption,
-  });
+      mediaUrl,
+      mediaMimeType,
+      mediaDuration,
+      mediaCaption,
+    });
 
-  broadcastToUser(session.userId, {
-    type: "new_message",
-    conversationId: conversation.id,
-    message: messageText,
-    mediaType,
+    const effectiveText = savedMessage.text || messageText;
+
+    // Se a mensagem de mídia (ex: áudio) tiver sido transcrita ao salvar,
+    // garantimos que o último texto da conversa use essa transcrição.
+    if (effectiveText !== messageText) {
+      await storage.updateConversation(conversation.id, {
+        lastMessageText: effectiveText,
+        lastMessageTime: new Date(),
+      });
+      messageText = effectiveText;
+    }
+
+    broadcastToUser(session.userId, {
+      type: "new_message",
+      conversationId: conversation.id,
+      message: messageText,
+      mediaType,
   });
 
   // AI Agent Auto-Response com delay de 30 segundos
@@ -417,9 +433,11 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
           );
 
           if (aiResponse) {
-            // EXATAMENTE como no backup - simples e direto!
-            const jid = `${targetNumber}@s.whatsapp.net`;
-            console.log(`[AI Agent] Sending to: ${jid}`);
+            // Buscar remoteJid original do banco
+            const conversationData = await storage.getConversation(conversationId);
+            const jid = conversationData?.remoteJid || `${targetNumber}@s.whatsapp.net`;
+            
+            console.log(`[AI Agent] Sending to original JID: ${jid}`);
             const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
 
             await storage.createMessage({
@@ -474,9 +492,10 @@ export async function sendMessage(userId: string, conversationId: string, text: 
     throw new Error("Unauthorized access to conversation");
   }
 
-  // EXATAMENTE como no backup - simples!
-  const jid = `${conversation.contactNumber}@s.whatsapp.net`;
+  // Usar remoteJid original do banco (suporta @lid, @s.whatsapp.net, etc)
+  const jid = conversation.remoteJid || `${conversation.contactNumber}@s.whatsapp.net`;
   
+  console.log(`[sendMessage] Sending to: ${jid}`);
   const sentMessage = await session.socket.sendMessage(jid, { text });
 
   await storage.createMessage({
