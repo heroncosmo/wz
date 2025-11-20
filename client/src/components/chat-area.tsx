@@ -117,9 +117,10 @@ export function ChatArea({ conversationId, connectionId }: ChatAreaProps) {
 
   // Número normalizado para exibição (usa remoteJid quando disponível)
   const displayNumber =
-    conversation?.remoteJid
+    conversation?.contactNumber ||
+    (conversation?.remoteJid
       ? conversation.remoteJid.split("@")[0].split(":")[0]
-      : conversation?.contactNumber || "";
+      : "");
 
   // Minimalist onboarding: Agent CTA should have priority on the right side
   if (!conversationId && (!agentConfig || !(agentConfig as any).isActive)) {

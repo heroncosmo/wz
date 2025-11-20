@@ -6,6 +6,7 @@
   WAMessage,
   downloadMediaMessage,
   jidNormalizedUser,
+  jidDecode,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -38,11 +39,40 @@ const adminSessions = new Map<string, AdminWhatsAppSession>();
 const wsClients = new Map<string, Set<AuthenticatedWebSocket>>();
 const adminWsClients = new Map<string, Set<AuthenticatedWebSocket>>();
 
+const DEFAULT_JID_SUFFIX = "s.whatsapp.net";
+
 // Base directory for storing Baileys multi-file auth state.
 // Defaults to current working directory (backwards compatible with ./auth_*)
 // You can set SESSIONS_DIR (e.g., "/data/whatsapp-sessions" on Railway volumes)
 // to persist sessions between deploys and avoid baking them into the image.
 const SESSIONS_BASE = process.env.SESSIONS_DIR || "./";
+
+function cleanContactNumber(input?: string | null): string {
+  return (input?.split(":")[0] || "").replace(/\D/g, "");
+}
+
+function parseRemoteJid(remoteJid: string) {
+  const decoded = jidDecode(remoteJid);
+  const rawUser = decoded?.user || remoteJid.split("@")[0] || "";
+  const jidSuffix = decoded?.server || remoteJid.split("@")[1]?.split(":")[0] || DEFAULT_JID_SUFFIX;
+
+  const contactNumber = cleanContactNumber(rawUser);
+  const normalizedJid = contactNumber
+    ? jidNormalizedUser(`${contactNumber}@${jidSuffix}`)
+    : jidNormalizedUser(remoteJid);
+
+  return { contactNumber, jidSuffix, normalizedJid };
+}
+
+function buildSendJid(conversation: { contactNumber?: string; remoteJid?: string | null; jidSuffix?: string | null }) {
+  if (conversation.remoteJid) {
+    return jidNormalizedUser(conversation.remoteJid);
+  }
+
+  const suffix = conversation.jidSuffix || DEFAULT_JID_SUFFIX;
+  const number = cleanContactNumber(conversation.contactNumber || "");
+  return jidNormalizedUser(`${number}@${suffix}`);
+}
 
 export function addWebSocketClient(ws: AuthenticatedWebSocket, userId: string) {
   if (!wsClients.has(userId)) {
@@ -218,8 +248,9 @@ export async function connectWhatsApp(userId: string): Promise<void> {
       
       // VerificaÃ§Ã£o extra: ignorar se o remoteJid Ã© o prÃ³prio nÃºmero
       if (message.key.remoteJid && session.phoneNumber) {
-        const remoteNumber = message.key.remoteJid.split("@")[0];
-        if (remoteNumber === session.phoneNumber) {
+        const remoteNumber = cleanContactNumber(message.key.remoteJid);
+        const myNumber = cleanContactNumber(session.phoneNumber);
+        if (remoteNumber && myNumber && remoteNumber === myNumber) {
           console.log(`Ignoring echo message from own number: ${remoteNumber}`);
           return;
         }
@@ -258,10 +289,13 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
+  const { contactNumber, jidSuffix, normalizedJid } = parseRemoteJid(remoteJid);
+  if (!contactNumber) {
+    console.log(`[WhatsApp] Could not extract contact number from JID: ${remoteJid}`);
+    return;
+  }
+
   // BAILEYS 2025 OFICIAL: jidNormalizedUser() retorna JID limpo sem :device
-  const normalizedJid = jidNormalizedUser(remoteJid);
-  const contactNumber = normalizedJid.split("@")[0]; // Número LIMPO!
-  
   console.log(`[WhatsApp] Original JID: ${remoteJid}`);
   console.log(`[WhatsApp] Normalized JID: ${normalizedJid}`);
   console.log(`[WhatsApp] Clean number: ${contactNumber}`);
@@ -356,7 +390,8 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     conversation = await storage.createConversation({
       connectionId: session.connectionId,
       contactNumber, // Número LIMPO para exibir no CRM
-      remoteJid, // JID original COMPLETO para enviar mensagens
+      remoteJid: normalizedJid, // JID normalizado para enviar mensagens
+      jidSuffix,
       contactName: waMessage.pushName,
       lastMessageText: messageText,
       lastMessageTime: new Date(),
@@ -364,7 +399,8 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     });
   } else {
     await storage.updateConversation(conversation.id, {
-      remoteJid, // Atualizar JID original (pode mudar)
+      remoteJid: normalizedJid, // Atualizar JID (pode mudar)
+      jidSuffix,
       lastMessageText: messageText,
       lastMessageTime: new Date(),
       unreadCount: (conversation.unreadCount || 0) + 1,
@@ -435,7 +471,9 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
           if (aiResponse) {
             // Buscar remoteJid original do banco
             const conversationData = await storage.getConversation(conversationId);
-            const jid = conversationData?.remoteJid || `${targetNumber}@s.whatsapp.net`;
+            const jid = conversationData
+              ? buildSendJid(conversationData)
+              : `${targetNumber}@${jidSuffix || DEFAULT_JID_SUFFIX}`;
             
             console.log(`[AI Agent] Sending to original JID: ${jid}`);
             const sentMessage = await currentSession.socket.sendMessage(jid, { text: aiResponse });
@@ -492,8 +530,8 @@ export async function sendMessage(userId: string, conversationId: string, text: 
     throw new Error("Unauthorized access to conversation");
   }
 
-  // Usar remoteJid original do banco (suporta @lid, @s.whatsapp.net, etc)
-  const jid = conversation.remoteJid || `${conversation.contactNumber}@s.whatsapp.net`;
+  // Usar remoteJid normalizado do banco (suporta @lid, @s.whatsapp.net, etc)
+  const jid = buildSendJid(conversation);
   
   console.log(`[sendMessage] Sending to: ${jid}`);
   const sentMessage = await session.socket.sendMessage(jid, { text });
@@ -737,7 +775,7 @@ export async function sendWelcomeMessage(userPhone: string): Promise<void> {
     console.log('[WELCOME] SessÃ£o encontrada, enviando mensagem...');
 
     // Formatar nÃºmero para envio (remover + e adicionar @s.whatsapp.net)
-    const formattedNumber = userPhone.replace('+', '') + '@s.whatsapp.net';
+    const formattedNumber = `${cleanContactNumber(userPhone) || userPhone.replace('+', '')}@${DEFAULT_JID_SUFFIX}`;
 
     // Enviar mensagem
     await adminSession.socket.sendMessage(formattedNumber, {
