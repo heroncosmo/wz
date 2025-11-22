@@ -57,19 +57,21 @@ function cleanContactNumber(input?: string | null): string {
 function parseRemoteJid(remoteJid: string, store?: ReturnType<typeof makeInMemoryStore>) {
   const decoded = jidDecode(remoteJid);
   const rawUser = decoded?.user || remoteJid.split("@")[0] || "";
-  const jidSuffix = decoded?.server || remoteJid.split("@")[1]?.split(":")[0] || DEFAULT_JID_SUFFIX;
+  let jidSuffix = decoded?.server || remoteJid.split("@")[1]?.split(":")[0] || DEFAULT_JID_SUFFIX;
 
   // FIX LID 2025: Se for @lid, tentar buscar número real via store.contacts
   let contactNumber = cleanContactNumber(rawUser);
   
   if (remoteJid.includes("@lid") && store) {
     const contact = store.contacts[remoteJid];
-    if (contact?.jid) {
+    if (contact?.phoneNumber) {
       // Encontrou mapeamento LID → Phone Number!
-      const realNumber = cleanContactNumber(contact.jid.split("@")[0]);
+      const realNumber = cleanContactNumber(contact.phoneNumber.split("@")[0]);
       if (realNumber) {
-        console.log(`[LID FIX] Mapped ${remoteJid} → ${contact.jid} (${realNumber})`);
+        console.log(`[LID FIX] Mapped ${remoteJid} → ${contact.phoneNumber} (${realNumber})`);
         contactNumber = realNumber;
+        // ✅ FORÇAR uso do número real (não continuar com @lid)
+        jidSuffix = "s.whatsapp.net";
       }
     } else {
       console.log(`[LID WARNING] No phone number mapping found for ${remoteJid}`);
