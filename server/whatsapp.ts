@@ -7,6 +7,7 @@
   downloadMediaMessage,
   jidNormalizedUser,
   jidDecode,
+  makeInMemoryStore,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -21,12 +22,14 @@ interface WhatsAppSession {
   userId: string;
   connectionId: string;
   phoneNumber?: string;
+  store?: ReturnType<typeof makeInMemoryStore>;
 }
 
 interface AdminWhatsAppSession {
   socket: WASocket | null;
   adminId: string;
   phoneNumber?: string;
+  store?: ReturnType<typeof makeInMemoryStore>;
 }
 
 interface AuthenticatedWebSocket extends WebSocket {
@@ -51,12 +54,28 @@ function cleanContactNumber(input?: string | null): string {
   return (input?.split(":")[0] || "").replace(/\D/g, "");
 }
 
-function parseRemoteJid(remoteJid: string) {
+function parseRemoteJid(remoteJid: string, store?: ReturnType<typeof makeInMemoryStore>) {
   const decoded = jidDecode(remoteJid);
   const rawUser = decoded?.user || remoteJid.split("@")[0] || "";
   const jidSuffix = decoded?.server || remoteJid.split("@")[1]?.split(":")[0] || DEFAULT_JID_SUFFIX;
 
-  const contactNumber = cleanContactNumber(rawUser);
+  // FIX LID 2025: Se for @lid, tentar buscar número real via store.contacts
+  let contactNumber = cleanContactNumber(rawUser);
+  
+  if (remoteJid.includes("@lid") && store) {
+    const contact = store.contacts[remoteJid];
+    if (contact?.jid) {
+      // Encontrou mapeamento LID → Phone Number!
+      const realNumber = cleanContactNumber(contact.jid.split("@")[0]);
+      if (realNumber) {
+        console.log(`[LID FIX] Mapped ${remoteJid} → ${contact.jid} (${realNumber})`);
+        contactNumber = realNumber;
+      }
+    } else {
+      console.log(`[LID WARNING] No phone number mapping found for ${remoteJid}`);
+    }
+  }
+
   const normalizedJid = contactNumber
     ? jidNormalizedUser(`${contactNumber}@${jidSuffix}`)
     : jidNormalizedUser(remoteJid);
@@ -166,16 +185,23 @@ export async function connectWhatsApp(userId: string): Promise<void> {
     const userAuthPath = path.join(SESSIONS_BASE, `auth_${userId}`);
     const { state, saveCreds } = await useMultiFileAuthState(userAuthPath);
 
+    // FIX LID 2025: Criar store para mapear @lid → phone number
+    const store = makeInMemoryStore({ logger: pino({ level: "silent" }) });
+
     const sock = makeWASocket({
       auth: state,
       logger: pino({ level: "silent" }),
       printQRInTerminal: false,
     });
 
+    // Bind store ao socket para receber eventos contacts.upsert
+    store.bind(sock.ev);
+
     const session: WhatsAppSession = {
       socket: sock,
       userId,
       connectionId: connection.id,
+      store,
     };
 
     sessions.set(userId, session);
@@ -289,7 +315,8 @@ async function handleIncomingMessage(session: WhatsAppSession, waMessage: WAMess
     return;
   }
 
-  const { contactNumber, jidSuffix, normalizedJid } = parseRemoteJid(remoteJid);
+  // FIX LID 2025: Passar store para resolver @lid → phone number
+  const { contactNumber, jidSuffix, normalizedJid } = parseRemoteJid(remoteJid, session.store);
   if (!contactNumber) {
     console.log(`[WhatsApp] Could not extract contact number from JID: ${remoteJid}`);
     return;
@@ -608,15 +635,22 @@ export async function connectAdminWhatsApp(adminId: string): Promise<void> {
     const adminAuthPath = path.join(SESSIONS_BASE, `auth_admin_${adminId}`);
     const { state, saveCreds } = await useMultiFileAuthState(adminAuthPath);
 
+    // FIX LID 2025: Criar store para mapear @lid → phone number
+    const store = makeInMemoryStore({ logger: pino({ level: "silent" }) });
+
     const socket = makeWASocket({
       auth: state,
       printQRInTerminal: false,
       logger: pino({ level: "silent" }),
     });
 
+    // Bind store ao socket para receber eventos contacts.upsert
+    store.bind(socket.ev);
+
     adminSessions.set(adminId, {
       socket,
       adminId,
+      store,
     });
 
     socket.ev.on("creds.update", saveCreds);
